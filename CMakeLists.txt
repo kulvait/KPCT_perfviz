@@ -42,32 +42,31 @@ add_custom_target(formatWebkit
 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 SET(PERFVIZ_SOURCES src/perfviz.cpp)
-add_executable(PV ${PERFVIZ_SOURCES})
+add_executable(perfviz ${PERFVIZ_SOURCES})
 set_target_properties(
-    PV 
+    perfviz 
     PROPERTIES 
         OUTPUT_NAME "perfviz"
         SUFFIX ""
 )
-#target_link_libraries(PV utils)
-target_link_libraries(PV ctiol)
-target_link_libraries (PV ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(perfviz ctiol)
+target_link_libraries (perfviz ${CMAKE_THREAD_LIBS_INIT})
 #target_link_libraries(CTRegression /usr/lib/liblapacke.so)
-target_link_libraries(PV ${MKL_CORE_LIBRARY})
-install (TARGETS PV RUNTIME DESTINATION .)
+target_link_libraries(perfviz ${MKL_CORE_LIBRARY})
+install (TARGETS perfviz RUNTIME DESTINATION .)
 
 SET(CONTVIZ_SOURCES src/contviz.cpp)
-add_executable(CONTVIZ ${PERFVIZ_SOURCES})
+add_executable(contviz ${CONTVIZ_SOURCES})
 set_target_properties(
-    CONTVIZ 
+    contviz 
     PROPERTIES 
         OUTPUT_NAME "contviz"
         SUFFIX ""
 )
-target_link_libraries(CONTVIZ ctiol)
-target_link_libraries (CONTVIZ ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(CONTVIZ ${MKL_CORE_LIBRARY})
-install (TARGETS CONTVIZ RUNTIME DESTINATION .)
+target_link_libraries(contviz ctiol)
+target_link_libraries (contviz ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(contviz ${MKL_CORE_LIBRARY})
+install (TARGETS contviz RUNTIME DESTINATION .)
 
 #Documentation target
 find_package(Doxygen)

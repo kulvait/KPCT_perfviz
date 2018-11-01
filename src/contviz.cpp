@@ -1,17 +1,17 @@
 // Logging
-#include "utils/PlogSetup.h"
+#include "PLOG/PlogSetup.h"
 // External libraries
 #include "CLI/CLI.hpp" //Command line parser
 
-#include "FittingExecutor.hpp"
-#include "io/AsyncFrame2DWritterI.hpp"
-#include "io/DenAsyncFrame2DWritter.hpp"
-#include "io/DenFileInfo.hpp"
-#include "io/DenFrame2DReader.hpp"
-#include "io/Frame2DReaderI.hpp"
-#include "io/stringFormatter.h"
-#include "utils/LegendrePolynomialsExplicit.hpp"
-#include "utils/TikhonovInverse.hpp"
+#include "AsyncFrame2DWritterI.hpp"
+#include "DEN/DenAsyncFrame2DWritter.hpp"
+#include "DEN/DenFileInfo.hpp"
+#include "DEN/DenFrame2DReader.hpp"
+#include "Frame2DReaderI.hpp"
+#include "stringFormatter.h"
+#include "FUN/LegendrePolynomialsExplicit.hpp"
+#include "FUN/LegendrePolynomialsDerivatives.hpp"
+#include "SVD/TikhonovInverse.hpp"
 #include "utils/TimeSeriesDiscretizer.hpp"
 
 using namespace CTL;
@@ -93,10 +93,11 @@ int Arguments::parseArguments(int argc, char* argv[])
         {
             io::throwerr("Length of the second is not positive!");
         }
+	std::string output_x, output_y, output_z;
         for(int i = 0; i != fittedCoeficients.size(); i++)
         {
 
-            std::string prefix = input_file.substr(0, fittedCoeficients[i].find(".", 0));
+            std::string prefix = fittedCoeficients[i].substr(0, fittedCoeficients[i].find(".", 0));
             output_x = io::xprintf("%s_x.den", prefix.c_str());
             output_y = io::xprintf("%s_y.den", prefix.c_str());
             output_z = io::xprintf("%s_z.den", prefix.c_str());
@@ -133,7 +134,7 @@ int main(int argc, char* argv[])
         = plog::debug; // Set to debug to see the debug messages, info messages
     std::string csvLogFile = "/tmp/perfvizLog.csv"; // Set "" to disable
     bool logToConsole = true;
-    util::PlogSetup plogSetup(verbosityLevel, csvLogFile, logToConsole);
+    plog::PlogSetup plogSetup(verbosityLevel, csvLogFile, logToConsole);
     plogSetup.initLogging();
     LOGD << "Logging!";
 
@@ -176,32 +177,4 @@ int main(int argc, char* argv[])
 
     // Vizualization
     int granularity = arg.granularity;
-    float* convolutionMatrix = new float[arg.granularity * arg.granularity];
-    float* aif = new float[granularity];
-    tsd.fillTimeValues(arg.ifx, arg.ify, arg.ifz, granularity, aif);
-    tsd.fillConvolutionMatrix(arg.ifx, arg.ify, arg.ifz, granularity, convolutionMatrix);
-    bool truncatedInstead = false;
-    float lambdaRel = 0.2;
-    utils::TikhonovInverse ti(lambdaRel, truncatedInstead);
-    ti.computePseudoinverse(convolutionMatrix, granularity);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> ttp_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/TTP.den", arg.outputFolder.c_str()), dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/CBF.den", arg.outputFolder.c_str()), dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/CBV.den", arg.outputFolder.c_str()), dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/MTT.den", arg.outputFolder.c_str()), dimx, dimy, dimz);
-    LOGD << "Starting TTP computation.";
-    tsd.computeTTP(granularity, ttp_w);
-    LOGD << "Evaluating perfusion parameters CBV, CBF and MTT.";
-    tsd.computeConvolvedParameters(convolutionMatrix, granularity, cbf_w, cbv_w, mtt_w);
-    LOGD << "End of computation.";
-
-    delete[] convolutionMatrix;
-    delete[] aif;
 }
