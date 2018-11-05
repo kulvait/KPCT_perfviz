@@ -4,9 +4,18 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 set(CMAKE_INSTALL_PREFIX $ENV{HOME}/bin)
 set(CMAKE_CXX_STANDARD 14)#Supported values are 98, 11 and 14.
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic -Wextra")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -rdynamic")
 set(CMAKE_BUILD_TYPE Debug)
+SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -g -rdynamic")
+SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -g -rdynamic")
+SET(CMAKE_SHARED_LIBRARY_CXX_FLAGS "${CMAKE_CXX_LINK_FLAGS} -g -rdynamic")
+SET(CMAKE_SHARED_LIBRARY_C_FLAGS "${CMAKE_C_LINK_FLAGS} -g -rdynamic")
+SET(LINK_FLAGS "${LINK_FLAGS} -g -rdynamic")
+SET(CMAKE_EXE_LINKER_FLAGS "-g -rdynamic")
+SET(CMAKE_SHARED_LINKER_FLAGS "-g -rdynamic")
+SET(CMAKE_MODULE_LINKER_FLAGS "-g -rdynamic")
 set(BUILD_SHARED_LIBS False)
+add_definitions("-Dstrtk_no_tr1_or_boost")
 
 #Header directories for the project
 set(GLOBAL_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
@@ -30,7 +39,7 @@ find_package(MKL)
 include_directories(${MKL_INCLUDE_DIRS})
 
 #CT input output library
-FILE( GLOB CTIOL_SRC ${CMAKE_SOURCE_DIR}/submodules/CTIOL/src/*.cpp )
+FILE( GLOB CTIOL_SRC ${CMAKE_SOURCE_DIR}/submodules/CTIOL/src/*.cpp ${CMAKE_SOURCE_DIR}/submodules/CTIOL/src/ARGPARSE/*.cpp)
 add_library(ctiol ${CTIOL_SRC})
 include_directories(${CMAKE_SOURCE_DIR}/submodules/CTIOL/include)
 

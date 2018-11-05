@@ -3,16 +3,21 @@
 // External libraries
 #include "CLI/CLI.hpp" //Command line parser
 
+#include "ARGPARSE/parseArgs.h"
+//#include "strtk/strtk.hpp"
+//#include <string>
 #include "AsyncFrame2DWritterI.hpp"
 #include "DEN/DenAsyncFrame2DWritter.hpp"
 #include "DEN/DenFileInfo.hpp"
 #include "DEN/DenFrame2DReader.hpp"
-#include "Frame2DReaderI.hpp"
-#include "stringFormatter.h"
-#include "FUN/LegendrePolynomialsExplicit.hpp"
 #include "FUN/LegendrePolynomialsDerivatives.hpp"
+#include "FUN/LegendrePolynomialsExplicit.hpp"
+#include "Frame2DReaderI.hpp"
+#include "FrameMemoryViewer2D.hpp"
 #include "SVD/TikhonovInverse.hpp"
+#include "stringFormatter.h"
 #include "utils/TimeSeriesDiscretizer.hpp"
+#include <regex>
 
 using namespace CTL;
 
@@ -43,6 +48,10 @@ struct Arguments
 
     // Length of one second in the units of the domain
     float secLength = 1000;
+
+    // Frames to process
+    std::string frameSpecs = "";
+    std::vector<int> frames;
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
@@ -68,13 +77,20 @@ int Arguments::parseArguments(int argc, char* argv[])
         ->check(CLI::Range(0.0, 1000000.0));
 
     app.add_option("output_folder", outputFolder,
-                   "Folder to which output data after the linear regression.")
+                   "Folder to which output data after the processing. Each z component processed "
+                   "will be in separate DEN file.")
         ->required()
         ->check(CLI::ExistingDirectory);
+    app.add_option("-f,--frames", frames,
+                   "Specify only particular slices/frames in a z direction to process. You can "
+                   "input range i.e. 0-20 or "
+                   "also individual coma separated frames i.e. 1,8,9. Order does matter. Accepts "
+                   "end literal that means total number of slices of the input.");
     app.add_option("fitted_coeficients", fittedCoeficients,
-                   "Legendre coeficients fited by the algorithm. Orderred from the first "
+                   "Legendre coeficients fited by the algorithm. Orderred from the zeroth "
                    "coeficient that corresponds to the constant. These must be also the "
-                   "corresponding files that represents gradients of these coefficients in x, y and z direction.")
+                   "corresponding files that represents gradients of these coefficients in x, y "
+                   "and z direction.")
         ->required()
         ->check(CLI::ExistingFile);
 
@@ -85,6 +101,7 @@ int Arguments::parseArguments(int argc, char* argv[])
         int dimx = di.getNumCols();
         int dimy = di.getNumRows();
         int dimz = di.getNumSlices();
+        frames = util::processFramesSpecification(frameSpecs, dimz);
         if(!(startTime < endTime))
         {
             io::throwerr("Start time %f must preceed end time %f.", startTime, endTime);
@@ -93,7 +110,7 @@ int Arguments::parseArguments(int argc, char* argv[])
         {
             io::throwerr("Length of the second is not positive!");
         }
-	std::string output_x, output_y, output_z;
+        std::string output_x, output_y, output_z;
         for(int i = 0; i != fittedCoeficients.size(); i++)
         {
 
@@ -160,21 +177,91 @@ int main(int argc, char* argv[])
     double dt = (arg.startTime - arg.endTime) / double(arg.granularity - 1);
     std::shared_ptr<util::VectorFunctionI> baseFunctionsEvaluator
         = std::make_shared<util::LegendrePolynomialsExplicit>(baseSize - 1, arg.startTime,
-                                                              arg.endTime, 1);
+                                                              arg.endTime);
     std::shared_ptr<util::VectorFunctionI> baseFunctionsDerivatives
         = std::make_shared<util::LegendrePolynomialsDerivatives>(baseSize - 1, arg.startTime,
-                                                              arg.endTime, 1);
+                                                                 arg.endTime);
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> fittedCoeficients;
+    std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> fittedCoeficients_x;
+    std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> fittedCoeficients_y;
+    std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> fittedCoeficients_z;
     // Fill this array only by values without offset.
-    std::shared_ptr<io::Frame2DReaderI<float>> pr;
-    for(int i = 1; i != baseSize; i++)
+    std::shared_ptr<io::Frame2DReaderI<float>> pr, px, py, pz;
+    for(int i = 0; i != baseSize; i++)
     {
         pr = std::make_shared<io::DenFrame2DReader<float>>(arg.fittedCoeficients[i]);
+        px = std::make_shared<io::DenFrame2DReader<float>>(arg.gradX[i]);
+        py = std::make_shared<io::DenFrame2DReader<float>>(arg.gradY[i]);
+        pz = std::make_shared<io::DenFrame2DReader<float>>(arg.gradZ[i]);
         fittedCoeficients.push_back(pr);
+        fittedCoeficients_x.push_back(px);
+        fittedCoeficients_y.push_back(py);
+        fittedCoeficients_z.push_back(pz);
     }
-    utils::TimeSeriesDiscretizer tsd(baseFunctionsEvaluator, fittedCoeficients, arg.secLength,
-                                     arg.threads);
+    utils::TimeSeriesDiscretizer ct(baseFunctionsDerivatives, fittedCoeficients, arg.secLength,
+                                    arg.threads);
 
+    utils::TimeSeriesDiscretizer cx(baseFunctionsEvaluator, fittedCoeficients_x, arg.secLength,
+                                    arg.threads);
+    utils::TimeSeriesDiscretizer cy(baseFunctionsEvaluator, fittedCoeficients_y, arg.secLength,
+                                    arg.threads);
+    utils::TimeSeriesDiscretizer cz(baseFunctionsEvaluator, fittedCoeficients_z, arg.secLength,
+                                    arg.threads);
     // Vizualization
     int granularity = arg.granularity;
+    float* val_t = new float[dimx * dimy * granularity];
+    float* val_x = new float[dimx * dimy * granularity];
+    float* val_y = new float[dimx * dimy * granularity];
+    float* val_z = new float[dimx * dimy * granularity];
+    float* val = new float[dimx * dimy * granularity];
+    std::unique_ptr<io::FrameMemoryViewer2D<float>> f;
+    for(int k = 0; k != arg.frames.size(); k++)
+    {
+        int z = arg.frames[k];
+        std::string outputFile = io::xprintf("%s/velocity_%02d.den", arg.outputFolder.c_str(), z);
+        std::string outputMeanFile
+            = io::xprintf("%s/meanvelocity_%02d.den", arg.outputFolder.c_str(), z);
+        std::unique_ptr<io::AsyncFrame2DWritterI<float>> velocity
+            = std::make_unique<io::DenAsyncFrame2DWritter<float>>(outputFile, dimx, dimy,
+                                                                  granularity);
+        std::unique_ptr<io::AsyncFrame2DWritterI<float>> meanVelocity
+            = std::make_unique<io::DenAsyncFrame2DWritter<float>>(outputMeanFile, dimx, dimy, 1);
+        double dt = (arg.endTime - arg.startTime) / double(granularity - 1);
+        double time = arg.startTime;
+        for(int i = 0; i != granularity; i++)
+        {
+            ct.evaluateFunction(z, time, &val_t[i * dimx * dimy]);
+            cx.evaluateFunction(z, time, &val_x[i * dimx * dimy]);
+            cy.evaluateFunction(z, time, &val_y[i * dimx * dimy]);
+            cz.evaluateFunction(z, time, &val_z[i * dimx * dimy]);
+            time += dt;
+        }
+        float gradient = 0.0;
+        for(int i = 0; i != dimx * dimy * granularity; i++)
+        {
+            gradient = std::sqrt(val_x[i] * val_x[i] + val_y[i] * val_y[i] + val_z[i] * val_z[i]);
+            val[i] = std::abs(val_t[i]) / gradient;
+        }
+        for(int i = 0; i != granularity; i++)
+        {
+            f = std::make_unique<io::FrameMemoryViewer2D<float>>(&val[i * dimx * dimy], dimx, dimy);
+            velocity->writeFrame(*f, i);
+        }
+        // Put total velocity in the first frame and write it
+        int framesize = dimx * dimy;
+        for(int i = 1; i < granularity; i++)
+        {
+            for(int j = 0; j != framesize; j++)
+            {
+                val[j] += val[framesize * i + j];
+            }
+        }
+        for(int j = 0; j != framesize; j++)
+        {
+            val[j] /= granularity;
+        }
+
+        f = std::make_unique<io::FrameMemoryViewer2D<float>>(val, dimx, dimy);
+        meanVelocity->writeFrame(*f, 0);
+    }
 }

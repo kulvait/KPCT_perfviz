@@ -8,10 +8,10 @@
 #include "DEN/DenAsyncFrame2DWritter.hpp"
 #include "DEN/DenFileInfo.hpp"
 #include "DEN/DenFrame2DReader.hpp"
-#include "Frame2DReaderI.hpp"
-#include "stringFormatter.h"
 #include "FUN/LegendrePolynomialsExplicit.hpp"
+#include "Frame2DReaderI.hpp"
 #include "SVD/TikhonovInverse.hpp"
+#include "stringFormatter.h"
 #include "utils/TimeSeriesDiscretizer.hpp"
 
 using namespace CTL;

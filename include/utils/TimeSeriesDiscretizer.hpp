@@ -59,6 +59,7 @@ public:
         }
         return val;
     }
+
     /**Evaluate function on the level of frame and write values into the array.
      *
      * z ... frame coordinate
