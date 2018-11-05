@@ -218,9 +218,9 @@ int main(int argc, char* argv[])
     for(int k = 0; k != arg.frames.size(); k++)
     {
         int z = arg.frames[k];
-        std::string outputFile = io::xprintf("%s/velocity_%02d.den", arg.outputFolder.c_str(), z);
+        std::string outputFile = io::xprintf("%s/velocity_%05d.den", arg.outputFolder.c_str(), z);
         std::string outputMeanFile
-            = io::xprintf("%s/meanvelocity_%02d.den", arg.outputFolder.c_str(), z);
+            = io::xprintf("%s/meanvelocity_%05d.den", arg.outputFolder.c_str(), z);
         std::unique_ptr<io::AsyncFrame2DWritterI<float>> velocity
             = std::make_unique<io::DenAsyncFrame2DWritter<float>>(outputFile, dimx, dimy,
                                                                   granularity);
