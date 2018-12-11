@@ -6,25 +6,30 @@
 #include "AsyncFrame2DWritterI.hpp"
 #include "BufferedFrame2D.hpp"
 #include "SVD/TikhonovInverse.hpp"
+#include "utils/Attenuation4DEvaluatorI.hpp"
 
-namespace CTL::utils {
+namespace CTL::util {
 
 class TimeSeriesDiscretizer
 {
 public:
-    TimeSeriesDiscretizer(std::shared_ptr<util::VectorFunctionI> baseFunctionsEvaluator,
-                          std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefs,
+    TimeSeriesDiscretizer(std::shared_ptr<util::Attenuation4DEvaluatorI> attenuationEvaluator,
+                          uint16_t dimx,
+                          uint16_t dimy,
+                          uint16_t dimz,
+                          float intervalStart,
+                          float intervalEnd,
                           float secLength,
-                          int threads)
+                          uint16_t threads)
+        : attenuationEvaluator(attenuationEvaluator)
+        , dimx(dimx)
+        , dimy(dimy)
+        , dimz(dimz)
+        , intervalStart(intervalStart)
+        , intervalEnd(intervalEnd)
+        , secLength(secLength)
+        , threads(threads)
     {
-        this->baseFunctionsEvaluator = baseFunctionsEvaluator;
-        this->coefs = coefs;
-        this->intervalStart = baseFunctionsEvaluator->getStart();
-        this->intervalEnd = baseFunctionsEvaluator->getEnd();
-        this->baseSize = baseFunctionsEvaluator->getDimension();
-        this->dimx = coefs[0]->dimx();
-        this->dimy = coefs[0]->dimy();
-        this->dimz = coefs[0]->dimz();
         if(threads < 1)
         {
             io::throwerr("The number of threads %d must be positive", threads);
@@ -39,72 +44,6 @@ public:
         }
     }
 
-    float evaluateFunctionAt(int x, int y, int z, double t)
-    {
-        if(z != zStored)
-        {
-            frames.clear();
-            for(int i = 0; i != baseSize; i++)
-            {
-                frames.push_back(coefs[i]->readFrame(z));
-            }
-            zStored = z;
-        }
-        float baseval[baseSize];
-        baseFunctionsEvaluator->valuesAt(t, baseval);
-        float val = 0.0;
-        for(int i = 0; i != baseSize; i++)
-        {
-            val += baseval[i] * frames[i]->get(x, y);
-        }
-        return val;
-    }
-
-    /**Evaluate function on the level of frame and write values into the array.
-     *
-     * z ... frame coordinate
-     */
-    void evaluateFunction(int z, double t, float* values)
-    {
-        float baseval[baseSize];
-        std::fill(values, values + (dimx * dimy), float(0));
-        baseFunctionsEvaluator->valuesAt(t, baseval);
-        std::shared_ptr<io::Frame2DI<float>> f;
-        for(int b = 0; b != baseSize; b++)
-        {
-            f = coefs[b]->readFrame(z);
-            for(int x = 0; x != dimx; x++)
-            {
-                for(int y = 0; y != dimy; y++)
-                {
-                    values[dimx * y + x] += baseval[b] * f->get(x, y);
-                }
-            }
-        }
-    }
-
-    void fillTimeValues(int x, int y, int z, int granularity, float* values)
-    {
-        double time = intervalStart;
-        double increment = (intervalEnd - intervalStart) / double(granularity - 1);
-        for(int i = 0; i != granularity; i++)
-        {
-            values[i] = evaluateFunctionAt(x, y, z, time);
-            time += increment;
-        }
-    }
-
-    void fillTimeFrame(int z, int granularity, float* values)
-    {
-        double time = intervalStart;
-        double increment = (intervalEnd - intervalStart) / double(granularity - 1);
-        for(int i = 0; i != granularity; i++)
-        {
-            evaluateFunction(z, time, &values[i * dimx * dimy]);
-            time += increment;
-        }
-    }
-
     /**Get peak time in seconds from 0.
      *
      */
@@ -116,7 +55,7 @@ public:
         maxval = std::numeric_limits<float>::min();
         for(int i = 0; i != granularity; i++)
         {
-            val = evaluateFunctionAt(x, y, z, time);
+            val = attenuationEvaluator->valueAt(x, y, z, time);
             if(val > maxval)
             {
                 maxval = val;
@@ -140,7 +79,7 @@ public:
         float *maxval, *val;
         maxval = new float[dimx * dimy];
         val = new float[dimx * dimy];
-        evaluateFunction(z, time, val);
+        attenuationEvaluator->frameAt(z, time, val);
         std::fill(maxval, &maxval[dimx * dimy], time / secLength); // Misuse of maxval
         io::BufferedFrame2D<float> pt(maxval, dimx, dimy); // Init buffer by time at the begining
         std::memcpy(maxval, val,
@@ -148,7 +87,7 @@ public:
         time += dt;
         for(int i = 1; i < granularity; i++)
         {
-            evaluateFunction(z, time, val);
+            attenuationEvaluator->frameAt(z, time, val);
             for(int x = 0; x != dimx; x++)
             {
                 for(int y = 0; y != dimy; y++)
@@ -165,25 +104,6 @@ public:
         w->writeFrame(pt, z);
         delete[] maxval;
         delete[] val;
-    }
-
-    void fillConvolutionMatrix(int x, int y, int z, int granularity, float* A)
-    {
-        float* aif = new float[granularity];
-        fillTimeValues(x, y, z, granularity, aif);
-        for(int i = 0; i != granularity; i++)
-            for(int j = 0; j != granularity; j++)
-            {
-                if(j > i)
-                {
-                    A[i * granularity + j] = 0.0;
-                } else
-                {
-                    A[i * granularity + j] = aif[i - j];
-                }
-            }
-
-        delete[] aif;
     }
 
     void computeTTP(int granularity, std::shared_ptr<io::AsyncFrame2DWritterI<float>> w)
@@ -209,8 +129,8 @@ public:
         ctpl::thread_pool* threadpool = new ctpl::thread_pool(threads);
         for(int z = 0; z != dimz; z++)
         {
-            threadpool->push([&, this, z](int id) { writePeakSlice(z, granularity, w); });
-            // writePeakSlice(z, granularity, w);//For testing normal
+            // threadpool->push([&, this, z](int id) { writePeakSlice(z, granularity, w); });
+            writePeakSlice(z, granularity, w); // For testing normal
         }
         threadpool->stop(true);
         delete threadpool;
@@ -240,18 +160,16 @@ public:
     {
         LOGD << io::xprintf("Computation on %d.", z);
         float* values = new float[dimx * dimy * granularity];
-        float* convol = new float[dimx * dimy * granularity];
+        float* convol = new float[dimx * dimy * granularity]();
         float* maxval_cbf = new float[dimx * dimy];
-        float* sum_cbv = new float[dimx * dimy];
+        float* sum_cbv = new float[dimx * dimy]();
         float* div_mtt = new float[dimx * dimy];
         std::fill(maxval_cbf, &maxval_cbf[dimx * dimy], std::numeric_limits<float>::min());
-        std::fill(sum_cbv, &sum_cbv[dimx * dimy], float(0));
-        std::fill(convol, &convol[dimx * dimy * granularity], float(0));
         double time = intervalStart;
         double dt = (intervalEnd - intervalStart) / double(granularity - 1);
         for(int i = 0; i != granularity; i++)
         {
-            evaluateFunction(z, time, &values[i * dimx * dimy]);
+            attenuationEvaluator->frameAt(z, time, &values[i * dimx * dimy]);
             time += dt;
         }
         for(int x = 0; x != dimx; x++)
@@ -341,10 +259,11 @@ public:
         ctpl::thread_pool* threadpool = new ctpl::thread_pool(threads);
         for(int z = 0; z != dimz; z++)
         {
-            threadpool->push([&, this, z](int id) {
-                computeConvolved(z, convolutionInverse, granularity, cbf_w, cbv_w, mtt_w);
-            });
-            // computeConvolved(z, convolutionInverse, granularity, cbf_w, cbv_w, mtt_w);//For
+            //            threadpool->push([&, this, z](int id) {
+            //                computeConvolved(z, convolutionInverse, granularity, cbf_w, cbv_w,
+            //                mtt_w);
+            //            });
+            computeConvolved(z, convolutionInverse, granularity, cbf_w, cbv_w, mtt_w); // For
             // testing normal
         }
         threadpool->stop(true);
@@ -352,17 +271,12 @@ public:
     }
 
 private:
-    std::shared_ptr<util::VectorFunctionI> baseFunctionsEvaluator;
-    std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefs;
-    double intervalStart, intervalEnd;
-    int zStored = -1;
-    int baseSize;
-    int threads;
-    int dimx;
-    int dimy;
-    int dimz;
+    std::shared_ptr<util::Attenuation4DEvaluatorI> attenuationEvaluator;
+    uint16_t dimx, dimy, dimz;
+    float intervalStart;
+    float intervalEnd;
     float secLength;
-    std::vector<std::shared_ptr<io::Frame2DI<float>>> frames;
+    uint16_t threads;
 };
 
-} // namespace CTL::utils
+} // namespace CTL::util

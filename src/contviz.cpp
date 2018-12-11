@@ -98,9 +98,7 @@ int Arguments::parseArguments(int argc, char* argv[])
     {
         app.parse(argc, argv);
         io::DenFileInfo di(fittedCoeficients[0]);
-        int dimx = di.getNumCols();
-        int dimy = di.getNumRows();
-        int dimz = di.getNumSlices();
+        int dimz = di.dimz();
         frames = util::processFramesSpecification(frameSpecs, dimz);
         if(!(startTime < endTime))
         {
@@ -111,7 +109,7 @@ int Arguments::parseArguments(int argc, char* argv[])
             io::throwerr("Length of the second is not positive!");
         }
         std::string output_x, output_y, output_z;
-        for(int i = 0; i != fittedCoeficients.size(); i++)
+        for(std::size_t i = 0; i != fittedCoeficients.size(); i++)
         {
 
             std::string prefix = fittedCoeficients[i].substr(0, fittedCoeficients[i].find(".", 0));
@@ -167,14 +165,12 @@ int main(int argc, char* argv[])
         {
             return -1; // Exited somehow wrong
         }
-    }
+    }/*
     LOGD << "Parsing arguments!";
     int baseSize = arg.fittedCoeficients.size();
     io::DenFileInfo di(arg.fittedCoeficients[0]);
-    int dimx = di.getNumCols();
-    int dimy = di.getNumRows();
-    int dimz = di.getNumSlices();
-    double dt = (arg.startTime - arg.endTime) / double(arg.granularity - 1);
+    uint16_t dimx = di.dimx();
+    uint16_t dimy = di.dimy();
     std::shared_ptr<util::VectorFunctionI> baseFunctionsEvaluator
         = std::make_shared<util::LegendrePolynomialsExplicit>(baseSize - 1, arg.startTime,
                                                               arg.endTime);
@@ -215,7 +211,7 @@ int main(int argc, char* argv[])
     float* val_z = new float[dimx * dimy * granularity];
     float* val = new float[dimx * dimy * granularity];
     std::unique_ptr<io::FrameMemoryViewer2D<float>> f;
-    for(int k = 0; k != arg.frames.size(); k++)
+    for(std::size_t k = 0; k != arg.frames.size(); k++)
     {
         int z = arg.frames[k];
         std::string outputFile = io::xprintf("%s/velocity_%05d.den", arg.outputFolder.c_str(), z);
@@ -263,5 +259,5 @@ int main(int argc, char* argv[])
 
         f = std::make_unique<io::FrameMemoryViewer2D<float>>(val, dimx, dimy);
         meanVelocity->writeFrame(*f, 0);
-    }
+    }*/
 }

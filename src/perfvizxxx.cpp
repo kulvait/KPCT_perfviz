@@ -8,19 +8,11 @@
 #include "DEN/DenAsyncFrame2DWritter.hpp"
 #include "DEN/DenFileInfo.hpp"
 #include "DEN/DenFrame2DReader.hpp"
-#include "FUN/LegendrePolynomialsExplicit.hpp"
+#include "FUN/StepFunction.hpp"
 #include "Frame2DReaderI.hpp"
 #include "SVD/TikhonovInverse.hpp"
 #include "stringFormatter.h"
 #include "utils/TimeSeriesDiscretizer.hpp"
-#include "utils/Attenuation4DEvaluatorI.hpp"
-#include "utils/LegendreSeriesEvaluator.hpp"
-
-#if DEBUG
-#include "matplotlibcpp.h"
-
-namespace plt = matplotlibcpp;
-#endif
 
 using namespace CTL;
 
@@ -34,7 +26,7 @@ struct Arguments
     std::string outputFolder;
 
     /// Projection files in a DEN format to use for linear regression.
-    std::vector<std::string> fittedCoefficients;
+    std::vector<std::string> fittedCoeficients;
 
     /// Number of threads
     int threads = 1;
@@ -46,7 +38,7 @@ struct Arguments
     uint16_t ifx, ify, ifz;
 
     /// Granularity of the time is number of time points analyzed by i.e. convolution
-    uint32_t granularity = 100;
+    int granularity = 100;
 
     // Length of one second in the units of the domain
     float secLength = 1000;
@@ -81,7 +73,7 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "Folder to which output data after the linear regression.")
         ->required()
         ->check(CLI::ExistingDirectory);
-    app.add_option("fitted_coeficients", fittedCoefficients,
+    app.add_option("fitted_coeficients", fittedCoeficients,
                    "Legendre coeficients fited by the algorithm. Orderred from the first "
                    "coeficient that corresponds to the constant.")
         ->required()
@@ -90,6 +82,7 @@ int Arguments::parseArguments(int argc, char* argv[])
     try
     {
         app.parse(argc, argv);
+        io::DenFileInfo di(fittedCoeficients[0]);
         if(!(startTime < endTime))
         {
             io::throwerr("Start time %f must preceed end time %f.", startTime, endTime);
@@ -134,24 +127,45 @@ int main(int argc, char* argv[])
             return -1; // Exited somehow wrong
         }
     }
-    std::shared_ptr<util::LegendreSeriesEvaluator> concentration
-        = std::make_shared<util::LegendreSeriesEvaluator>(a.fittedCoefficients.size() - 1, a.startTime, a.endTime,
-                                                         a.fittedCoefficients);
-    // Vizualization
-    float* convolutionMatrix = new float[a.granularity * a.granularity];
-    float* aif = new float[a.granularity];
-    concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
-    utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
-#if DEBUG
-    std::vector<double> plotme;
-    for(uint32_t i = 0; i != a.granularity; i++)
-    {
-        plotme.push_back(aif[i]);
-    }
-    plt::plot(plotme);
-    plt::show();
-#endif
 /*
+    int baseSize = a.fittedCoeficients.size();
+    io::DenFileInfo di(a.fittedCoeficients[0]);
+    int dimx = di.dimx();
+    int dimy = di.dimy();
+    int dimz = di.dimz();
+    double christina[] = {
+        0.1694,  0.1696,  0.1698,  0.1699,  0.1705,  0.1716,  0.1746,  0.1825,  0.1953,  0.2115,
+        0.2201,  0.2194,  0.2157,  0.2077,  0.2020,  0.1955,  0.1915,  0.1887,  0.1867,  0.1860,
+        0.1857,  0.1854,  0.1853,  0.1849,  0.1848,  0.1841,  0.1837,  0.1830,
+
+        0.2305,  0.2344,  0.2232,  0.2301,  0.2216,  0.2074,  0.1744,  0.0770,  -0.0700, -0.2687,
+        -0.3926, -0.3968, -0.3546, -0.2439, -0.1514, -0.0679, -0.0141, 0.0231,  0.0559,  0.0617,
+        0.0706,  0.0690,  0.0761,  0.0760,  0.0719,  0.0874,  0.0902,  0.0966,
+
+        0.0863,  0.0882,  0.0685,  0.0937,  0.0785,  0.1173,  0.1596,  0.2843,  0.4406,  0.4470,
+        0.2234,  0.1195,  -0.2047, -0.1982, -0.3100, -0.2145, -0.2327, -0.1463, -0.1655, -0.0716,
+        -0.1163, -0.0538, -0.0740, -0.0876, -0.0916, -0.0927, -0.0662, -0.0679
+    };
+    int valuesPerFunction = 28;
+    std::shared_ptr<util::VectorFunctionI> baseFunctionsEvaluator
+        = std::make_shared<util::StepFunction>(christina, 3, valuesPerFunction, a.startTime, a.endTime);
+    std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> fittedCoeficients;
+    // Fill this array only by values without offset.
+    std::shared_ptr<io::Frame2DReaderI<float>> pr;
+    for(int i = 1; i != baseSize; i++)
+    {
+        pr = std::make_shared<io::DenFrame2DReader<float>>(a.fittedCoeficients[i]);
+        fittedCoeficients.push_back(pr);
+    }
+    utils::TimeSeriesDiscretizer tsd(baseFunctionsEvaluator, fittedCoeficients, a.secLength,
+                                     a.threads);
+
+    // Vizualization
+    int granularity = a.granularity;
+    float* convolutionMatrix = new float[granularity * granularity];
+    float* aif = new float[granularity];
+    tsd.fillTimeValues(a.ifx, a.ify, a.ifz, granularity, aif);
+    tsd.fillConvolutionMatrix(a.ifx, a.ify, a.ifz, granularity, convolutionMatrix);
     bool truncatedInstead = false;
     float lambdaRel = 0.2;
     utils::TikhonovInverse ti(lambdaRel, truncatedInstead);
@@ -172,8 +186,9 @@ int main(int argc, char* argv[])
     tsd.computeTTP(granularity, ttp_w);
     LOGD << "Evaluating perfusion parameters CBV, CBF and MTT.";
     tsd.computeConvolvedParameters(convolutionMatrix, granularity, cbf_w, cbv_w, mtt_w);
+    LOGD << "End of computation.";
+
     delete[] convolutionMatrix;
     delete[] aif;
 */
-    LOGI << io::xprintf("END %s", argv[0]);
 }

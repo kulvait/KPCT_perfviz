@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 14)#Supported values are 98, 11 and 14.
 message("Current value of flags is ${CMAKE_CXX_FLAGS} and debug is ${CMAKE_CXX_FLAGS_DEBUG} and release is ${CMAKE_CXX_FLAGS_RELEASE}")
 #Default CMAKE_CXX_FLAGS are empty, default for CMAKE_CXX_FLAGS_DEBUG is -g and CMAKE_CXX_FLAGS_RELEASE are not empty
 set(CMAKE_CXX_FLAGS "-Wall")
-set(CMAKE_CXX_FLAGS_DEBUG "-g")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic -Wextra")
 set(CMAKE_BUILD_TYPE Debug)
 set(BUILD_SHARED_LIBS False)
@@ -16,6 +16,7 @@ add_definitions("-Dstrtk_no_tr1_or_boost")
 #Header directories for the project
 set(GLOBAL_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
 include_directories(${GLOBAL_INCLUDE_DIR})
+
 
 #Plog logger
 include_directories(${CMAKE_SOURCE_DIR}/submodules/plog/include)
@@ -42,6 +43,14 @@ include_directories(${CMAKE_SOURCE_DIR}/submodules/CTIOL/include)
 #CTMAL
 include_directories(${CMAKE_SOURCE_DIR}/submodules/CTMAL/include)
 
+#Matplotlibcpp
+include_directories(${CMAKE_SOURCE_DIR}/submodules/matplotlib-cpp)
+
+#Python for matplotlib
+find_package(PythonLibs 2.7)
+include_directories(${PYTHON_INCLUDE_DIRS})
+
+
 add_custom_target(formatWebkit
 ./formatWebkit
 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
@@ -58,7 +67,22 @@ target_link_libraries(perfviz ctiol)
 target_link_libraries (perfviz ${CMAKE_THREAD_LIBS_INIT})
 #target_link_libraries(CTRegression /usr/lib/liblapacke.so)
 target_link_libraries(perfviz ${MKL_CORE_LIBRARY})
+target_link_libraries(perfviz ${PYTHON_LIBRARIES})
 install (TARGETS perfviz RUNTIME DESTINATION .)
+
+SET(PERFVIZXXX_SOURCES src/perfvizxxx.cpp)
+add_executable(perfvizxxx ${PERFVIZXXX_SOURCES})
+set_target_properties(
+    perfvizxxx 
+    PROPERTIES 
+        OUTPUT_NAME "perfvizxxx"
+        SUFFIX ""
+)
+target_link_libraries(perfvizxxx ctiol)
+target_link_libraries (perfvizxxx ${CMAKE_THREAD_LIBS_INIT})
+#target_link_libraries(CTRegression /usr/lib/liblapacke.so)
+target_link_libraries(perfvizxxx ${MKL_CORE_LIBRARY})
+install (TARGETS perfvizxxx RUNTIME DESTINATION .)
 
 SET(CONTVIZ_SOURCES src/contviz.cpp)
 add_executable(contviz ${CONTVIZ_SOURCES})
