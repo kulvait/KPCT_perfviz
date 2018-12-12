@@ -12,9 +12,9 @@
 #include "Frame2DReaderI.hpp"
 #include "SVD/TikhonovInverse.hpp"
 #include "stringFormatter.h"
-#include "utils/TimeSeriesDiscretizer.hpp"
 #include "utils/Attenuation4DEvaluatorI.hpp"
 #include "utils/LegendreSeriesEvaluator.hpp"
+#include "utils/TimeSeriesDiscretizer.hpp"
 
 #if DEBUG
 #include "matplotlibcpp.h"
@@ -37,7 +37,7 @@ struct Arguments
     std::vector<std::string> fittedCoefficients;
 
     /// Number of threads
-    int threads = 1;
+    uint16_t threads = 0;
 
     /// Controls the size of the time interval [ms] that should be identified with 0.0.
     float startTime = 4117, endTime = 56000;
@@ -56,8 +56,8 @@ int Arguments::parseArguments(int argc, char* argv[])
 {
     CLI::App app{ "Visualization of perfusion parameters CT based on Legendre fiting." };
     app.add_option("-j,--threads", threads,
-                   "Number of extra threads that application can use. Defaults to 1.")
-        ->check(CLI::Range(1, 65535));
+                   "Number of extra threads that application can use. Defaults to 0 which means sychronous execution.")
+        ->check(CLI::Range(0, 65535));
     app.add_option("-i,--start-time", startTime,
                    "Start of the interval in miliseconds of the support of the functions of time "
                    "[defaults to 4117, 247*16.6].")
@@ -134,28 +134,37 @@ int main(int argc, char* argv[])
             return -1; // Exited somehow wrong
         }
     }
-    std::shared_ptr<util::LegendreSeriesEvaluator> concentration
-        = std::make_shared<util::LegendreSeriesEvaluator>(a.fittedCoefficients.size() - 1, a.startTime, a.endTime,
-                                                         a.fittedCoefficients);
+    uint16_t dimx, dimy, dimz;
+    io::DenFileInfo di(a.fittedCoefficients[0]);
+    dimx = di.dimx();
+    dimy = di.dimy();
+    dimz = di.dimz();
+    std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
+        = std::make_shared<util::LegendreSeriesEvaluator>(
+            a.fittedCoefficients.size() - 1, a.fittedCoefficients, a.startTime, a.endTime);
     // Vizualization
     float* convolutionMatrix = new float[a.granularity * a.granularity];
     float* aif = new float[a.granularity];
     concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
-#if DEBUG
+#if DEBUG // Ploting AIF
+    std::vector<double> taxis;
+    float* _taxis = new float[a.granularity];
+    concentration->timeDiscretization(a.granularity, _taxis);
     std::vector<double> plotme;
     for(uint32_t i = 0; i != a.granularity; i++)
     {
         plotme.push_back(aif[i]);
+        taxis.push_back(_taxis[i]);
     }
-    plt::plot(plotme);
+    plt::plot(taxis, plotme);
     plt::show();
+    delete[] _taxis;
 #endif
-/*
     bool truncatedInstead = false;
     float lambdaRel = 0.2;
     utils::TikhonovInverse ti(lambdaRel, truncatedInstead);
-    ti.computePseudoinverse(convolutionMatrix, granularity);
+    ti.computePseudoinverse(convolutionMatrix, a.granularity);
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> ttp_w
         = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
             io::xprintf("%s/TTP.den", a.outputFolder.c_str()), dimx, dimy, dimz);
@@ -168,12 +177,12 @@ int main(int argc, char* argv[])
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w
         = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
             io::xprintf("%s/MTT.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    LOGD << "Starting TTP computation.";
-    tsd.computeTTP(granularity, ttp_w);
-    LOGD << "Evaluating perfusion parameters CBV, CBF and MTT.";
-    tsd.computeConvolvedParameters(convolutionMatrix, granularity, cbf_w, cbv_w, mtt_w);
+    util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.startTime, a.endTime, a.secLength, a.threads);
+	LOGD << "TTP computation.";
+    tsd.computeTTP(a.granularity, ttp_w);
+    LOGD << "CBV, CBF and MTT computation.";
+    tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
     delete[] convolutionMatrix;
     delete[] aif;
-*/
     LOGI << io::xprintf("END %s", argv[0]);
 }

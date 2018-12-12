@@ -65,24 +65,23 @@ set_target_properties(
 )
 target_link_libraries(perfviz ctiol)
 target_link_libraries (perfviz ${CMAKE_THREAD_LIBS_INIT})
-#target_link_libraries(CTRegression /usr/lib/liblapacke.so)
 target_link_libraries(perfviz ${MKL_CORE_LIBRARY})
 target_link_libraries(perfviz ${PYTHON_LIBRARIES})
 install (TARGETS perfviz RUNTIME DESTINATION .)
 
-SET(PERFVIZXXX_SOURCES src/perfvizxxx.cpp)
-add_executable(perfvizxxx ${PERFVIZXXX_SOURCES})
+SET(PERFVIZXXX_SOURCES src/perfviz-engineer.cpp)
+add_executable(perfviz_engineer ${PERFVIZXXX_SOURCES})
 set_target_properties(
-    perfvizxxx 
+    perfviz_engineer 
     PROPERTIES 
-        OUTPUT_NAME "perfvizxxx"
+        OUTPUT_NAME "perfviz-engineer"
         SUFFIX ""
 )
-target_link_libraries(perfvizxxx ctiol)
-target_link_libraries (perfvizxxx ${CMAKE_THREAD_LIBS_INIT})
-#target_link_libraries(CTRegression /usr/lib/liblapacke.so)
-target_link_libraries(perfvizxxx ${MKL_CORE_LIBRARY})
-install (TARGETS perfvizxxx RUNTIME DESTINATION .)
+target_link_libraries(perfviz_engineer ctiol)
+target_link_libraries (perfviz_engineer ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(perfviz_engineer ${MKL_CORE_LIBRARY})
+target_link_libraries(perfviz_engineer ${PYTHON_LIBRARIES})
+install (TARGETS perfviz_engineer RUNTIME DESTINATION .)
 
 SET(CONTVIZ_SOURCES src/contviz.cpp)
 add_executable(contviz ${CONTVIZ_SOURCES})

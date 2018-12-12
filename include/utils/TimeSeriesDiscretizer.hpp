@@ -44,10 +44,14 @@ public:
         }
     }
 
-    /**Get peak time in seconds from 0.
+    /** Computes the second from zero in which attenuation is maximal in given point.
      *
+     *@param[in] x Zero based x coordinate of the volume.
+     *@param[in] y Zero based y coordinate of the volume.
+     *@param[in] z Zero based z coordinate of the volume.
+     *@param[in] granularity How much time instants should be used to discretize time interval.
      */
-    float getPeakTime(int x, int y, int z, int granularity)
+    float getPeakIn(int x, int y, int z, int granularity)
     {
         float time = intervalStart;
         float dt = (intervalEnd - intervalStart) / float(granularity - 1);
@@ -66,24 +70,21 @@ public:
         return maxtime / secLength;
     }
 
-    /** Write one slice of TTP values.
+    /** Writes the frame z of the second from zero in which attenuation is maximal in given point.
      *
-     *Values are in seconds from 0.
-     *
+     *@param[in] z Zero based z coordinate of the volume.
+     *@param[in] granularity How much time instants should be used to discretize time interval.
      */
-    void writePeakSlice(int z, int granularity, std::shared_ptr<io::AsyncFrame2DWritterI<float>> w)
+    void writePeakFrame(int z, int granularity, std::shared_ptr<io::AsyncFrame2DWritterI<float>> w)
     {
         float time = intervalStart;
         float dt = (intervalEnd - intervalStart) / float(granularity - 1);
-        LOGD << io::xprintf("Writing %d TTP frame to file, dt is %fs.", z, dt / secLength);
         float *maxval, *val;
         maxval = new float[dimx * dimy];
         val = new float[dimx * dimy];
-        attenuationEvaluator->frameAt(z, time, val);
-        std::fill(maxval, &maxval[dimx * dimy], time / secLength); // Misuse of maxval
-        io::BufferedFrame2D<float> pt(maxval, dimx, dimy); // Init buffer by time at the begining
-        std::memcpy(maxval, val,
-                    dimx * dimy * sizeof(float)); // Maximum value is value at the begining
+        attenuationEvaluator->frameAt(z, intervalStart, maxval);
+        io::BufferedFrame2D<float> pt(float(intervalStart / secLength), dimx,
+                                      dimy); // Init buffer by time at the begining
         time += dt;
         for(int i = 1; i < granularity; i++)
         {
@@ -95,7 +96,7 @@ public:
                     if(val[x + dimx * y] > maxval[x + dimx * y])
                     {
                         maxval[x + dimx * y] = val[x + dimx * y];
-                        pt.set(time / secLength, x, y);
+                        pt.set(float(time / secLength), x, y);
                     }
                 }
             }
@@ -104,61 +105,59 @@ public:
         w->writeFrame(pt, z);
         delete[] maxval;
         delete[] val;
+        LOGD << io::xprintf("Written %d TTP frame.", z);
     }
 
+    /** Computes the second from zero in which attenuation is maximal.
+     *
+     *@param[in] granularity How much time instants should be used to discretize time interval.
+     *@param[in] w The result should be written into the volume through this frame writter
+     *interface.
+     */
     void computeTTP(int granularity, std::shared_ptr<io::AsyncFrame2DWritterI<float>> w)
     {
-        /*        float* b = new float[dimx * dimy];
-                io::BufferedFrame2D<float> f(b, dimx, dimy);
-                for(int z = 0; z != dimz; z++)
-                {
-                    for(int x = 0; x != dimx; x++)
-                    {
-                        for(int y = 0; y != dimy; y++)
-                        {
-                            float pt = getPeakTime(x, y, z, granularity);
-                            f.set(pt, x, y);
-                        }
-                    }
-                    w->writeFrame(f, z);
-                }
-                delete[] b;
-        */
-        // New implementation
-        LOGD << io::xprintf("Called computeTTP dimz is %d and threads is %d.", dimz, threads);
-        ctpl::thread_pool* threadpool = new ctpl::thread_pool(threads);
-        for(int z = 0; z != dimz; z++)
+        if(threads == 0)
         {
-            // threadpool->push([&, this, z](int id) { writePeakSlice(z, granularity, w); });
-            writePeakSlice(z, granularity, w); // For testing normal
-        }
-        threadpool->stop(true);
-        delete threadpool;
-    }
-
-    void multiplyWithVector(float* A, float* v, int n, float* out)
-    {
-        for(int i = 0; i != n; i++)
-        {
-            out[i] = 0.0;
-            for(int k = 0; k != n; k++)
+            LOGD << io::xprintf("Function computeTTP working synchronously without threading.");
+            for(int z = 0; z != dimz; z++)
             {
-                out[i] += A[i * n + k] * v[k];
+                writePeakFrame(z, granularity, w); // For testing normal
             }
+        } else
+        {
+            LOGD << io::xprintf("Function computeTTP working asynchronously on %d threads.",
+                                threads);
+            ctpl::thread_pool* threadpool = new ctpl::thread_pool(threads);
+            for(int z = 0; z != dimz; z++)
+            {
+                threadpool->push(
+                    [&, this, z, granularity, w](int id) { writePeakFrame(z, granularity, w); });
+            }
+            threadpool->stop(true);
+            delete threadpool;
         }
     }
 
-    /**Compute slice of convolved parameters
+    /**Writes the z frames of perfusion parameters integral of deconvolution vector elements,
+     *maximal element of deconvolution vector and their division into the files.
      *
+     *@param[in] z Zero based z coordinate of the volume.
+     *@param[in] granularity How much time instants should be used to discretize time interval.
+     *@param[in] convolutionInverse Inverse convolution matrix of the size granularity \times
+     *granularity.
+     *@param[in] cbf_w Writter to write maximal element of deconvolution vector in.
+     *@param[in] cbv_w Writter to write deconvolution vector integral .
+     *@param[in] mtt_w Writter to write division product of deconvolution integral and deconvolution
+     *maximum.
      */
-    void computeConvolved(int z,
-                          float* convolutionInverse,
-                          int granularity,
-                          std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w,
-                          std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w,
-                          std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w)
+    void writePerfusionFrames(int z,
+                              int granularity,
+                              float* convolutionInverse,
+                              std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w,
+                              std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w,
+                              std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w)
     {
-        LOGD << io::xprintf("Computation on %d.", z);
+        LOGD << io::xprintf("Estimating perfusion parameters for frame %d.", z);
         float* values = new float[dimx * dimy * granularity];
         float* convol = new float[dimx * dimy * granularity]();
         float* maxval_cbf = new float[dimx * dimy];
@@ -211,63 +210,48 @@ public:
         delete[] convol;
     }
 
-    void computeConvolvedParameters(float* convolutionInverse,
-                                    int granularity,
+
+    /**Writes three perfusion parameters into the files.
+     *
+     *@param[in] granularity How much time instants should be used to discretize time interval.
+     *@param[in] convolutionInverse Inverse convolution matrix of the size granularity \times
+     *granularity.
+     *@param[in] cbf_w Writter to write maximal element of deconvolution vector in.
+     *@param[in] cbv_w Writter to write deconvolution vector integral .
+     *@param[in] mtt_w Writter to write division product of deconvolution integral and deconvolution
+     *maximum.
+     */
+    void computePerfusionParameters(int granularity,
+                                    float* convolutionInverse,
                                     std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w,
                                     std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w,
                                     std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w)
     {
-        /*
-        float* b = new float[dimx * dimy];
-        float* values = new float[granularity];
-        float* convol = new float[granularity];
-        float dt = (intervalEnd - intervalStart) / float(granularity - 1);
-        io::BufferedFrame2D<float> cbf(b, dimx, dimy);
-        io::BufferedFrame2D<float> cbv(b, dimx, dimy);
-        io::BufferedFrame2D<float> mtt(b, dimx, dimy);
-        for(int z = 0; z != dimz; z++)
+
+        if(threads == 0)
         {
-            for(int x = 0; x != dimx; x++)
+            LOGD << io::xprintf(
+                "Function computePerfusionParameters working synchronously without threading.");
+            for(int z = 0; z != dimz; z++)
             {
-                for(int y = 0; y != dimy; y++)
-                {
-                    fillTimeValues(x, y, z, granularity, values);
-                    multiplyWithVector(convolutionInverse, values, granularity, convol);
-                    float sum = 0;
-                    float maxval = std::numeric_limits<float>::min();
-                    for(int i = 0; i != granularity; i++)
-                    {
-
-                        maxval = (convol[i] < maxval ? maxval : convol[i]);
-                        sum += convol[i];
-                    }
-                    maxval /= dt;
-                    cbf.set(maxval, x, y);
-                    cbv.set(sum, x, y);
-                    mtt.set(sum / maxval, x, y);
-                }
+                writePerfusionFrames(z, granularity, convolutionInverse, cbf_w, cbv_w, mtt_w);
             }
-            cbf_w->writeFrame(cbf, z);
-            cbv_w->writeFrame(cbv, z);
-            mtt_w->writeFrame(mtt, z);
-        }
-        delete[] b;
-        delete[] values;
-        delete[] convol;
-*/
-
-        ctpl::thread_pool* threadpool = new ctpl::thread_pool(threads);
-        for(int z = 0; z != dimz; z++)
+        } else
         {
-            //            threadpool->push([&, this, z](int id) {
-            //                computeConvolved(z, convolutionInverse, granularity, cbf_w, cbv_w,
-            //                mtt_w);
-            //            });
-            computeConvolved(z, convolutionInverse, granularity, cbf_w, cbv_w, mtt_w); // For
-            // testing normal
+            LOGD << io::xprintf(
+                "Function computePerfusionParameters working asynchronously on %d threads.",
+                threads);
+            ctpl::thread_pool* threadpool = new ctpl::thread_pool(threads);
+            for(int z = 0; z != dimz; z++)
+            {
+                threadpool->push([&, this, z, convolutionInverse, granularity, cbf_w, cbv_w,
+                                  mtt_w](int id) {
+                    writePerfusionFrames(z, granularity, convolutionInverse, cbf_w, cbv_w, mtt_w);
+                });
+            }
+            threadpool->stop(true);
+            delete threadpool;
         }
-        threadpool->stop(true);
-        delete threadpool;
     }
 
 private:
