@@ -11,8 +11,8 @@
 #include "Frame2DReaderI.hpp"
 #include "SVD/TikhonovInverse.hpp"
 #include "stringFormatter.h"
-#include "utils/TimeSeriesDiscretizer.hpp"
 #include "utils/EngineerSeriesEvaluator.hpp"
+#include "utils/TimeSeriesDiscretizer.hpp"
 
 #if DEBUG
 #include "matplotlibcpp.h"
@@ -57,7 +57,7 @@ struct Arguments
 
 int Arguments::parseArguments(int argc, char* argv[])
 {
-    CLI::App app{ "Visualization of perfusion parameters CT based on Legendre fiting." };
+    CLI::App app{ "Visualization of perfusion parameters CT based on fiting of engineered basis." };
     app.add_option("-j,--threads", threads,
                    "Number of extra threads that application can use. Defaults to 0 which means "
                    "sychronous execution.")
@@ -158,14 +158,16 @@ int main(int argc, char* argv[])
     int dimy = di.dimy();
     int dimz = di.dimz();
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
-        = std::make_shared<util::EngineerSeriesEvaluator>(
-            a.sampledBasis, a.fittedCoefficients, a.startTime, a.endTime);
+        = std::make_shared<util::EngineerSeriesEvaluator>(a.sampledBasis, a.fittedCoefficients,
+                                                          a.startTime, a.endTime);
     // Vizualization
     float* convolutionMatrix = new float[a.granularity * a.granularity];
     float* aif = new float[a.granularity];
     concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
 #if DEBUG // Ploting AIF
+    util::StepFunction b(a.fittedCoefficients.size(), a.sampledBasis, a.startTime, a.endTime);
+    b.plotFunctions();
     std::vector<double> taxis;
     float* _taxis = new float[a.granularity];
     concentration->timeDiscretization(a.granularity, _taxis);
@@ -195,8 +197,9 @@ int main(int argc, char* argv[])
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w
         = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
             io::xprintf("%s/MTT.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.startTime, a.endTime, a.secLength, a.threads);
-	LOGD << "TTP computation.";
+    util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.startTime, a.endTime,
+                                    a.secLength, a.threads);
+    LOGD << "TTP computation.";
     tsd.computeTTP(a.granularity, ttp_w);
     LOGD << "CBV, CBF and MTT computation.";
     tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);

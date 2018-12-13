@@ -56,7 +56,8 @@ int Arguments::parseArguments(int argc, char* argv[])
 {
     CLI::App app{ "Visualization of perfusion parameters CT based on Legendre fiting." };
     app.add_option("-j,--threads", threads,
-                   "Number of extra threads that application can use. Defaults to 0 which means sychronous execution.")
+                   "Number of extra threads that application can use. Defaults to 0 which means "
+                   "sychronous execution.")
         ->check(CLI::Range(0, 65535));
     app.add_option("-i,--start-time", startTime,
                    "Start of the interval in miliseconds of the support of the functions of time "
@@ -148,6 +149,8 @@ int main(int argc, char* argv[])
     concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
 #if DEBUG // Ploting AIF
+    util::LegendrePolynomialsExplicit b(a.fittedCoefficients.size() - 1, a.startTime, a.endTime, 1);
+    b.plotFunctions();
     std::vector<double> taxis;
     float* _taxis = new float[a.granularity];
     concentration->timeDiscretization(a.granularity, _taxis);
@@ -177,8 +180,9 @@ int main(int argc, char* argv[])
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w
         = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
             io::xprintf("%s/MTT.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.startTime, a.endTime, a.secLength, a.threads);
-	LOGD << "TTP computation.";
+    util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.startTime, a.endTime,
+                                    a.secLength, a.threads);
+    LOGD << "TTP computation.";
     tsd.computeTTP(a.granularity, ttp_w);
     LOGD << "CBV, CBF and MTT computation.";
     tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);

@@ -94,6 +94,7 @@ set_target_properties(
 target_link_libraries(contviz ctiol)
 target_link_libraries (contviz ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(contviz ${MKL_CORE_LIBRARY})
+target_link_libraries(contviz ${PYTHON_LIBRARIES})
 install (TARGETS contviz RUNTIME DESTINATION .)
 
 #Documentation target
