@@ -53,6 +53,14 @@ struct Arguments
     float secLength = 1000;
 
     uint32_t baseSize;
+
+#ifdef DEBUG
+    /**Vizualize base functions.
+     *
+     *If set vizualize base functions using Python.
+     */
+    bool vizualize = false;
+#endif
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
@@ -77,6 +85,9 @@ int Arguments::parseArguments(int argc, char* argv[])
     app.add_option("-c,--sec-length", secLength,
                    "Length of one second in the units of the domain. Defaults to 1000.")
         ->check(CLI::Range(0.0, 1000000.0));
+#if DEBUG
+    app.add_flag("-v,--vizualize", vizualize, "Vizualize engineered basis.");
+#endif
     app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
     app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
     app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
@@ -166,20 +177,23 @@ int main(int argc, char* argv[])
     concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
 #if DEBUG // Ploting AIF
-    util::StepFunction b(a.fittedCoefficients.size(), a.sampledBasis, a.startTime, a.endTime);
-    b.plotFunctions();
-    std::vector<double> taxis;
-    float* _taxis = new float[a.granularity];
-    concentration->timeDiscretization(a.granularity, _taxis);
-    std::vector<double> plotme;
-    for(uint32_t i = 0; i != a.granularity; i++)
+    if(a.vizualize)
     {
-        plotme.push_back(aif[i]);
-        taxis.push_back(_taxis[i]);
+        util::StepFunction b(a.fittedCoefficients.size(), a.sampledBasis, a.startTime, a.endTime);
+        b.plotFunctions();
+        std::vector<double> taxis;
+        float* _taxis = new float[a.granularity];
+        concentration->timeDiscretization(a.granularity, _taxis);
+        std::vector<double> plotme;
+        for(uint32_t i = 0; i != a.granularity; i++)
+        {
+            plotme.push_back(aif[i]);
+            taxis.push_back(_taxis[i]);
+        }
+        plt::plot(taxis, plotme);
+        plt::show();
+        delete[] _taxis;
     }
-    plt::plot(taxis, plotme);
-    plt::show();
-    delete[] _taxis;
 #endif
     bool truncatedInstead = false;
     float lambdaRel = 0.2;

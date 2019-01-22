@@ -173,6 +173,40 @@ void evaluateFrame(std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coef,
     delete[] coefficientsAtTime;
 }
 
+void evaluateFrameShiftedToZero(std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coef,
+                                std::shared_ptr<util::VectorFunctionI> b,
+                                uint16_t z,
+                                float time,
+                                float* val)
+{
+    uint32_t degree = b->getDimension();
+    float* valuesAtTime = new float[b->getDimension()];
+    float* valuesAtZero = new float[b->getDimension()];
+    uint16_t dimx = coef[0]->dimx();
+    uint16_t dimy = coef[0]->dimy();
+    std::vector<std::shared_ptr<io::Frame2DI<float>>> frames;
+    for(std::shared_ptr<io::Frame2DReaderI<float>> x : coef)
+    {
+        frames.push_back(x->readFrame(z));
+    }
+    b->valuesAt(time, valuesAtTime);
+    b->valuesAt(b->getStart(), valuesAtZero);
+    std::fill_n(val, dimx * dimy, float(0.0));
+    for(int y = 0; y != dimy; y++)
+    {
+        for(int x = 0; x != dimx; x++)
+        {
+            for(uint32_t d = 0; d != degree; d++)
+            {
+                // Need to offset the gradients by the value at zero
+                val[y * dimx + x] += (valuesAtTime[d] - valuesAtZero[d]) * frames[d]->get(x, y);
+            }
+        }
+    }
+    delete[] valuesAtTime;
+    delete[] valuesAtZero;
+}
+
 int main(int argc, char* argv[])
 {
     plog::Severity verbosityLevel = plog::debug; // debug, info, ...
@@ -239,9 +273,8 @@ int main(int argc, char* argv[])
     float* val_z = new float[dimx * dimy * granularity];
     float* val = new float[dimx * dimy * granularity];
     std::unique_ptr<io::FrameMemoryViewer2D<float>> f;
-    for(std::size_t k = 0; k != a.frames.size(); k++)
+    for(int z : a.frames)
     {
-        int z = a.frames[k];
         std::string outputFile = io::xprintf("%s/velocity_%05d.den", a.outputFolder.c_str(), z);
         std::string outputMeanFile
             = io::xprintf("%s/meanvelocity_%05d.den", a.outputFolder.c_str(), z);
@@ -254,10 +287,16 @@ int main(int argc, char* argv[])
         double time = a.startTime;
         for(int i = 0; i != granularity; i++)
         {
-            evaluateFrame(fittedCoeficients, baseFunctionsDerivatives, z, time, &val_t[i * dimx * dimy]);
-            evaluateFrame(fittedCoeficients_x, baseFunctionsEvaluator, z, time, &val_x[i * dimx * dimy]);
-            evaluateFrame(fittedCoeficients_y, baseFunctionsEvaluator, z, time, &val_y[i * dimx * dimy]);
-            evaluateFrame(fittedCoeficients_z, baseFunctionsEvaluator, z, time, &val_z[i * dimx * dimy]);
+            /// We put frame values with fixed z for time derivatives and for components of
+            /// gradients
+            evaluateFrame(fittedCoeficients, baseFunctionsDerivatives, z, time,
+                          &val_t[i * dimx * dimy]);
+            evaluateFrame(fittedCoeficients_x, baseFunctionsEvaluator, z, time,
+                          &val_x[i * dimx * dimy]);
+            evaluateFrame(fittedCoeficients_y, baseFunctionsEvaluator, z, time,
+                          &val_y[i * dimx * dimy]);
+            evaluateFrame(fittedCoeficients_z, baseFunctionsEvaluator, z, time,
+                          &val_z[i * dimx * dimy]);
             time += dt;
         }
         float gradient = 0.0;
@@ -271,21 +310,39 @@ int main(int argc, char* argv[])
             f = std::make_unique<io::FrameMemoryViewer2D<float>>(&val[i * dimx * dimy], dimx, dimy);
             velocity->writeFrame(*f, i);
         }
-        // Put total velocity in the first frame and write it
+        // Now construct lower bound on \NORM{\vec{v}}_2
         int framesize = dimx * dimy;
-        for(int i = 1; i < granularity; i++)
+        std::fill(val, val + framesize, float(0));
+        for(int i = 0; i != granularity; i++)
         {
             for(int j = 0; j != framesize; j++)
             {
-                val[j] += val[framesize * i + j];
+                val[j] += std::abs(val_t[framesize * i + j]);
+            }
+        }
+
+        std::fill(val_t, val_t + framesize, float(0));
+        for(int i = 0; i != granularity; i++)
+        {
+            for(int j = 0; j != framesize; j++)
+            {
+                int ind = framesize * i + j;
+                val_t[j]
+                    += val_x[ind] * val_x[ind] + val_y[ind] * val_y[ind] + val_z[ind] * val_z[ind];
             }
         }
         for(int j = 0; j != framesize; j++)
         {
-            val[j] /= granularity;
+            val[j] = val[j] / std::sqrt(val_t[j]);
         }
 
         f = std::make_unique<io::FrameMemoryViewer2D<float>>(val, dimx, dimy);
         meanVelocity->writeFrame(*f, 0);
     }
+    delete[] val_t;
+    delete[] val_x;
+    delete[] val_y;
+    delete[] val_z;
+    delete[] val;
+    LOGI << io::xprintf("END %s", argv[0]);
 }
