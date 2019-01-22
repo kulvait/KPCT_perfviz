@@ -210,7 +210,6 @@ public:
         delete[] convol;
     }
 
-
     /**Writes three perfusion parameters into the files.
      *
      *@param[in] granularity How much time instants should be used to discretize time interval.

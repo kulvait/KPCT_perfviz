@@ -4,8 +4,8 @@
 #include <mutex>
 #include <vector>
 
-#include "utils/Attenuation4DEvaluatorI.hpp"
 #include "FUN/StepFunction.hpp"
+#include "utils/Attenuation4DEvaluatorI.hpp"
 
 namespace CTL::util {
 
@@ -21,7 +21,7 @@ public:
      *@param[in] intervalEnd End time.
      */
     EngineerSeriesEvaluator(std::string sampledBasisFunctions,
-                            std::vector<std::string> &coefficientVolumeFiles,
+                            std::vector<std::string>& coefficientVolumeFiles,
                             float intervalStart,
                             float intervalEnd);
 
@@ -154,10 +154,10 @@ private:
     void updateFramesStored(const uint16_t z);
 };
 
-    EngineerSeriesEvaluator::EngineerSeriesEvaluator(std::string sampledBasisFunctions,
-                            std::vector<std::string> &coefficientVolumeFiles,
-                            float intervalStart,
-                            float intervalEnd)
+EngineerSeriesEvaluator::EngineerSeriesEvaluator(std::string sampledBasisFunctions,
+                                                 std::vector<std::string>& coefficientVolumeFiles,
+                                                 float intervalStart,
+                                                 float intervalEnd)
     : intervalStart(intervalStart)
     , intervalEnd(intervalEnd)
 {
@@ -166,7 +166,8 @@ private:
     degree = coefficientVolumeFiles.size();
     if(degree < 1)
     {
-        io::throwerr("There must be at least one basis function to capture the time behavior but there is 0.");
+        io::throwerr("There must be at least one basis function to capture the time behavior but "
+                     "there is 0.");
     }
     io::DenFileInfo di(coefficientVolumeFiles[0]);
     dimx = di.dimx();
@@ -191,8 +192,8 @@ private:
             io::throwerr("There are incompatible coefficients!");
         }
     }
-    basisEvaluator = std::make_shared<util::StepFunction>(degree, sampledBasisFunctions, intervalStart,
-                                               intervalEnd);
+    basisEvaluator = std::make_shared<util::StepFunction>(degree, sampledBasisFunctions,
+                                                          intervalStart, intervalEnd);
     legendreValuesStored = new float[degree];
     legendreValuesIntervalStart = new float[degree];
     basisEvaluator->valuesAt(intervalStart, legendreValuesStored);

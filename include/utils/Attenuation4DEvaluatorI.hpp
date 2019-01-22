@@ -64,4 +64,4 @@ public:
      */
     virtual void frameTimeSeries(const uint16_t vz, const uint32_t granularity, float* val) = 0;
 };
-} // namespace CTL::utils
+} // namespace CTL::util
