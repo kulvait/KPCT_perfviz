@@ -83,6 +83,20 @@ target_link_libraries(perfviz_engineer ${MKL_CORE_LIBRARY})
 target_link_libraries(perfviz_engineer ${PYTHON_LIBRARIES})
 install (TARGETS perfviz_engineer RUNTIME DESTINATION .)
 
+SET(PERFVIZSTATICREC_SOURCES src/perfviz-staticrec.cpp)
+add_executable(perfviz_staticrec ${PERFVIZSTATICREC_SOURCES})
+set_target_properties(
+    perfviz_staticrec 
+    PROPERTIES 
+        OUTPUT_NAME "perfviz-staticrec"
+        SUFFIX ""
+)
+target_link_libraries(perfviz_staticrec ctiol)
+target_link_libraries (perfviz_staticrec ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(perfviz_staticrec ${MKL_CORE_LIBRARY})
+target_link_libraries(perfviz_staticrec ${PYTHON_LIBRARIES})
+install (TARGETS perfviz_staticrec RUNTIME DESTINATION .)
+
 SET(CONTVIZ_SOURCES src/contviz.cpp)
 add_executable(contviz ${CONTVIZ_SOURCES})
 set_target_properties(
