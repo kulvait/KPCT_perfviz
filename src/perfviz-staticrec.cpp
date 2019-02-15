@@ -34,9 +34,6 @@ struct Arguments
     /// Static reconstructions in a DEN format to use for linear regression.
     std::vector<std::string> coefficientVolumeFiles;
 
-    /// Sampled function values in a DEN format to use as basis.
-    std::string sampledBasis;
-
     /// Number of threads
     uint16_t threads = 0;
 
@@ -109,14 +106,16 @@ int Arguments::parseArguments(int argc, char* argv[])
     try
     {
         app.parse(argc, argv);
-        io::DenFileInfo di(sampledBasis);
-        baseSize = di.dimz();
-        if(baseSize != coefficientVolumeFiles.size())
+        if(coefficientVolumeFiles.size() != 10)
         {
-            std::string err = io::xprintf(
-                "Fitted coefficients size %d is different from the base size %d in sampled basis",
-                coefficientVolumeFiles.size(), baseSize);
-            io::throwerr(err);
+            std::string err = io::xprintf("Number of sweeps is %d which is unusual number.", coefficientVolumeFiles.size());
+            LOGW << err;
+        }
+        if(coefficientVolumeFiles.size() < 2)
+        {
+            std::string err = io::xprintf("Small number of input files %d.", coefficientVolumeFiles.size());
+            LOGE << err;
+		io::throwerr(err);
         }
         if(secLength == 0.0)
         {
