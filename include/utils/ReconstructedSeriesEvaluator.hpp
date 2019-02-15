@@ -290,8 +290,7 @@ void ReconstructedSeriesEvaluator::timeSeriesIn(
     fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
     // See
     // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
-    fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer,
-                          DF_UNIFORM_PARTITION);
+    fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer);
     float v0 = storedInterpolationBuffer[0];
     for(uint32_t i = 0; i != granularity; i++)
     {
@@ -392,8 +391,7 @@ void ReconstructedSeriesEvaluator::frameTimeSeries(const uint16_t z,
             fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
             // See
             // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
-            fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer,
-                                  DF_UNIFORM_PARTITION);
+            fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer);
             float v0 = storedInterpolationBuffer[0];
             for(uint32_t i = 0; i != granularity; i++)
             {
