@@ -132,13 +132,13 @@ private:
     uint16_t dimx, dimy, dimz;
     std::shared_ptr<util::VectorFunctionI> basisEvaluator;
     float* valuesAtStart;
-    float* legendreValuesIntervalStart;
+    float* basisCoefficientsStart;
 
     // Global parameters to support faster operations for certain functions.
     std::mutex globalsAccess;
-    float* legendreValuesStored;
+    float* basisCoefficientsStored;
     float storedTime;
-    /** Function updates the legendreValuesStored to match given time.
+    /** Function updates the basisCoefficientsStored to match given time.
      *
      *@param[in] t Time to update.
      *
@@ -194,10 +194,10 @@ EngineerSeriesEvaluator::EngineerSeriesEvaluator(std::string sampledBasisFunctio
     }
     basisEvaluator = std::make_shared<util::StepFunction>(degree, sampledBasisFunctions,
                                                           intervalStart, intervalEnd);
-    legendreValuesStored = new float[degree];
-    legendreValuesIntervalStart = new float[degree];
-    basisEvaluator->valuesAt(intervalStart, legendreValuesStored);
-    basisEvaluator->valuesAt(intervalStart, legendreValuesIntervalStart);
+    basisCoefficientsStored = new float[degree];
+    basisCoefficientsStart = new float[degree];
+    basisEvaluator->valuesAt(intervalStart, basisCoefficientsStored);
+    basisEvaluator->valuesAt(intervalStart, basisCoefficientsStart);
     storedTime = intervalStart;
     storedZ = 0;
     for(uint32_t i = 0; i != degree; i++)
@@ -209,13 +209,13 @@ EngineerSeriesEvaluator::EngineerSeriesEvaluator(std::string sampledBasisFunctio
 
 EngineerSeriesEvaluator::~EngineerSeriesEvaluator()
 {
-    if(legendreValuesStored != nullptr)
+    if(basisCoefficientsStored != nullptr)
     {
-        delete[] legendreValuesStored;
+        delete[] basisCoefficientsStored;
     }
-    if(legendreValuesIntervalStart != nullptr)
+    if(basisCoefficientsStart != nullptr)
     {
-        delete[] legendreValuesIntervalStart;
+        delete[] basisCoefficientsStart;
     }
     if(valuesAtStart != nullptr)
     {
@@ -262,7 +262,7 @@ void EngineerSeriesEvaluator::updateEngineerValuesStored(const float t)
 {
     if(storedTime != t)
     {
-        basisEvaluator->valuesAt(t, legendreValuesStored);
+        basisEvaluator->valuesAt(t, basisCoefficientsStored);
         storedTime = t;
     }
 }
@@ -291,7 +291,7 @@ float EngineerSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
     float val = 0.0;
     for(uint32_t i = 0; i != degree; i++)
     {
-        val += legendreValuesIntervalStart[i] * framesStored[i]->get(x, y);
+        val += basisCoefficientsStart[i] * framesStored[i]->get(x, y);
     }
     return val;
 }
@@ -307,7 +307,7 @@ float EngineerSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
     float val = 0.0;
     for(uint32_t i = 0; i != degree; i++)
     {
-        val += legendreValuesStored[i] * framesStored[i]->get(x, y);
+        val += basisCoefficientsStored[i] * framesStored[i]->get(x, y);
     }
     return val;
 }
@@ -326,7 +326,7 @@ void EngineerSeriesEvaluator::frameAt(const uint16_t z, const float t, float* va
             for(uint32_t d = 0; d != degree; d++)
             {
                 valuesAtStart[y * dimx + x]
-                    += legendreValuesIntervalStart[d] * framesStored[d]->get(x, y);
+                    += basisCoefficientsStart[d] * framesStored[d]->get(x, y);
             }
         }
     }
@@ -337,7 +337,7 @@ void EngineerSeriesEvaluator::frameAt(const uint16_t z, const float t, float* va
         {
             for(uint32_t d = 0; d != degree; d++)
             {
-                val[y * dimx + x] += legendreValuesStored[d] * framesStored[d]->get(x, y);
+                val[y * dimx + x] += basisCoefficientsStored[d] * framesStored[d]->get(x, y);
             }
             val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - valuesAtStart[y * dimx + x]);
         }
@@ -359,7 +359,7 @@ void EngineerSeriesEvaluator::frameAt_customOffset(const uint16_t z,
         {
             for(uint32_t d = 0; d != degree; d++)
             {
-                val[y * dimx + x] += legendreValuesStored[d] * framesStored[d]->get(x, y);
+                val[y * dimx + x] += basisCoefficientsStored[d] * framesStored[d]->get(x, y);
             }
             val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - offset[y * dimx + x]);
         }
@@ -378,7 +378,7 @@ void EngineerSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val
         {
             for(uint32_t d = 0; d != degree; d++)
             {
-                val[y * dimx + x] += legendreValuesIntervalStart[d] * framesStored[d]->get(x, y);
+                val[y * dimx + x] += basisCoefficientsStart[d] * framesStored[d]->get(x, y);
             }
         }
     }

@@ -81,19 +81,19 @@ public:
         float dt = (intervalEnd - intervalStart) / float(granularity - 1);
         float *maxval, *val;
         maxval = new float[dimx * dimy];
-        val = new float[dimx * dimy];
-        attenuationEvaluator->frameAt(z, intervalStart, maxval);
+        val = new float[dimx * dimy * granularity];
+        std::memcpy(maxval, val, dimx * dimy * sizeof(float));
+        attenuationEvaluator->frameTimeSeries(z, granularity, val);
+
         io::BufferedFrame2D<float> pt(float(intervalStart / secLength), dimx,
                                       dimy); // Init buffer by time at the begining
-        time += dt;
-        for(int i = 1; i < granularity; i++)
+        for(int i = 0; i < granularity; i++)
         {
-            attenuationEvaluator->frameAt(z, time, val);
             for(int x = 0; x != dimx; x++)
             {
                 for(int y = 0; y != dimy; y++)
                 {
-                    if(val[x + dimx * y] > maxval[x + dimx * y])
+                    if(val[x + dimx * y + i * dimx * dimy] > maxval[x + dimx * y])
                     {
                         maxval[x + dimx * y] = val[x + dimx * y];
                         pt.set(float(time / secLength), x, y);
