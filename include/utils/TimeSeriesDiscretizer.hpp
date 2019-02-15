@@ -30,10 +30,6 @@ public:
         , secLength(secLength)
         , threads(threads)
     {
-        if(threads < 1)
-        {
-            io::throwerr("The number of threads %d must be positive", threads);
-        }
         this->threads = threads;
         if(secLength > 0.0)
         {
@@ -95,7 +91,7 @@ public:
                 {
                     if(val[x + dimx * y + i * dimx * dimy] > maxval[x + dimx * y])
                     {
-                        maxval[x + dimx * y] = val[x + dimx * y];
+                        maxval[x + dimx * y] = val[x + dimx * y + i * dimx * dimy];
                         pt.set(float(time / secLength), x, y);
                     }
                 }
@@ -165,12 +161,7 @@ public:
         float* div_mtt = new float[dimx * dimy];
         std::fill(maxval_cbf, &maxval_cbf[dimx * dimy], std::numeric_limits<float>::min());
         double time = intervalStart;
-        double dt = (intervalEnd - intervalStart) / double(granularity - 1);
-        for(int i = 0; i != granularity; i++)
-        {
-            attenuationEvaluator->frameAt(z, time, &values[i * dimx * dimy]);
-            time += dt;
-        }
+        attenuationEvaluator->frameTimeSeries(z, granularity, values);
         for(int x = 0; x != dimx; x++)
         {
             for(int y = 0; y != dimy; y++)
