@@ -108,14 +108,16 @@ int Arguments::parseArguments(int argc, char* argv[])
         app.parse(argc, argv);
         if(coefficientVolumeFiles.size() != 10)
         {
-            std::string err = io::xprintf("Number of sweeps is %d which is unusual number.", coefficientVolumeFiles.size());
+            std::string err = io::xprintf("Number of sweeps is %d which is unusual number.",
+                                          coefficientVolumeFiles.size());
             LOGW << err;
         }
         if(coefficientVolumeFiles.size() < 2)
         {
-            std::string err = io::xprintf("Small number of input files %d.", coefficientVolumeFiles.size());
+            std::string err
+                = io::xprintf("Small number of input files %d.", coefficientVolumeFiles.size());
             LOGE << err;
-		io::throwerr(err);
+            io::throwerr(err);
         }
         if(secLength == 0.0)
         {
@@ -203,7 +205,9 @@ int main(int argc, char* argv[])
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w
         = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
             io::xprintf("%s/MTT.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.sweepOffset, a.sweepOffset+a.sweepTime*(a.coefficientVolumeFiles.size()-1),
+    util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.sweepOffset,
+                                    a.sweepOffset
+                                        + a.sweepTime * (a.coefficientVolumeFiles.size() - 1),
                                     a.secLength, a.threads);
     LOGD << "TTP computation.";
     tsd.computeTTP(a.granularity, ttp_w);

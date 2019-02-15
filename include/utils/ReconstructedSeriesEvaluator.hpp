@@ -181,11 +181,11 @@ ReconstructedSeriesEvaluator::ReconstructedSeriesEvaluator(
             attenuationVolumeFiles.size());
     }
     breakpointsNum = attenuationVolumeFiles.size();
+    intervalStart = sweepOffset;
+    intervalEnd = sweepOffset + (breakpointsNum - 1) * sweepTime;
     breakpointsT = new double[breakpointsNum];
     timeDiscretizationDouble(breakpointsNum, breakpointsT);
     breakpointsY = new double[breakpointsNum];
-    intervalStart = sweepOffset;
-    intervalEnd = sweepOffset + (attenuationVolumeFiles.size() - 1) * sweepTime;
     io::DenFileInfo di(attenuationVolumeFiles[0]);
     dimx = di.dimx();
     dimy = di.dimy();
