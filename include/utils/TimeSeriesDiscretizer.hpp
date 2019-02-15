@@ -160,7 +160,7 @@ public:
         float* sum_cbv = new float[dimx * dimy]();
         float* div_mtt = new float[dimx * dimy];
         std::fill(maxval_cbf, &maxval_cbf[dimx * dimy], std::numeric_limits<float>::min());
-        double time = intervalStart;
+        double dt = (intervalEnd - intervalStart) / double(granularity - 1);
         attenuationEvaluator->frameTimeSeries(z, granularity, values);
         for(int x = 0; x != dimx; x++)
         {
