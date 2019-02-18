@@ -212,7 +212,7 @@ int main(int argc, char* argv[])
     LOGD << "TTP computation.";
     tsd.computeTTP(a.granularity, ttp_w);
     LOGD << "CBV, CBF and MTT computation.";
-    tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
+    //tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
     delete[] convolutionMatrix;
     delete[] aif;
     LOGI << io::xprintf("END %s", argv[0]);

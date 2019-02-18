@@ -78,8 +78,8 @@ public:
         float *maxval, *val;
         maxval = new float[dimx * dimy];
         val = new float[dimx * dimy * granularity];
-        std::memcpy(maxval, val, dimx * dimy * sizeof(float));
         attenuationEvaluator->frameTimeSeries(z, granularity, val);
+        std::memcpy(maxval, val, dimx * dimy * sizeof(float));
 
         io::BufferedFrame2D<float> pt(float(intervalStart / secLength), dimx,
                                       dimy); // Init buffer by time at the begining
@@ -153,7 +153,6 @@ public:
                               std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w,
                               std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w)
     {
-        LOGD << io::xprintf("Estimating perfusion parameters for frame %d.", z);
         float* values = new float[dimx * dimy * granularity];
         float* convol = new float[dimx * dimy * granularity]();
         float* maxval_cbf = new float[dimx * dimy];
@@ -199,6 +198,7 @@ public:
         delete[] div_mtt;
         delete[] values;
         delete[] convol;
+        LOGD << io::xprintf("Estimated perfusion parameters for frame %d.", z);
     }
 
     /**Writes three perfusion parameters into the files.
