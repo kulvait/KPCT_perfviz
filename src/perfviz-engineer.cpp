@@ -14,7 +14,7 @@
 #include "utils/EngineerSeriesEvaluator.hpp"
 #include "utils/TimeSeriesDiscretizer.hpp"
 
-#if DEBUG
+#ifdef DEBUG
 #include "matplotlibcpp.h"
 
 namespace plt = matplotlibcpp;
@@ -88,7 +88,7 @@ int Arguments::parseArguments(int argc, char* argv[])
     app.add_option("-c,--sec-length", secLength,
                    "Length of one second in the units of the domain. Defaults to 1000.")
         ->check(CLI::Range(0.0, 1000000.0));
-#if DEBUG
+#ifdef DEBUG
     app.add_flag("-v,--vizualize", vizualize, "Vizualize engineered basis.");
 #endif
     app.add_flag("--ttp", onlyttp, "Compute only ttp.");

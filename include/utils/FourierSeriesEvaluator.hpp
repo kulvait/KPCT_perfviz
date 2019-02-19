@@ -202,7 +202,7 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(uint32_t degree,
     storedZ = 0;
     for(uint32_t i = 1; i < degree; i++)
     {
-        framesStored.push_back(coefficientVolumes[i]->readFrame(storedZ));
+        framesStored.push_back(coefficientVolumes[i-1]->readFrame(storedZ));
     }
     valuesAtStart = new float[dimx * dimy](); // Constructor is not filling this array
 }
@@ -275,7 +275,7 @@ void FourierSeriesEvaluator::updateFramesStored(const uint16_t z)
         framesStored.clear();
         for(uint32_t i = 1; i < degree; i++)
         {
-            framesStored.push_back(coefficientVolumes[i]->readFrame(z));
+            framesStored.push_back(coefficientVolumes[i-1]->readFrame(z));
         }
         storedZ = z;
     }
