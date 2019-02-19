@@ -54,6 +54,7 @@ struct Arguments
 
     uint32_t baseSize;
 
+    // If only ttp should be computed
     bool onlyttp = false;
 
 #ifdef DEBUG
@@ -213,10 +214,10 @@ int main(int argc, char* argv[])
                                         + a.sweepTime * (a.coefficientVolumeFiles.size() - 1),
                                     a.secLength, a.threads);
     LOGD << "TTP computation.";
-    tsd.computeTTP(a.granularity, ttp_w);
-    LOGD << "CBV, CBF and MTT computation.";
+    tsd.computeTTP(a.granularity, ttp_w, aif);
     if(!a.onlyttp)
     {
+        LOGD << "CBV, CBF and MTT computation.";
         tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
     }
     delete[] convolutionMatrix;

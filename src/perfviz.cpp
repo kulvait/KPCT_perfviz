@@ -50,6 +50,9 @@ struct Arguments
 
     // Length of one second in the units of the domain
     float secLength = 1000;
+
+    // Vizualize only ttp
+    bool onlyttp = false;
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
@@ -183,9 +186,12 @@ int main(int argc, char* argv[])
     util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.startTime, a.endTime,
                                     a.secLength, a.threads);
     LOGD << "TTP computation.";
-    tsd.computeTTP(a.granularity, ttp_w);
-    LOGD << "CBV, CBF and MTT computation.";
-    tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
+    tsd.computeTTP(a.granularity, ttp_w, aif);
+    if(!a.onlyttp)
+    {
+        LOGD << "CBV, CBF and MTT computation.";
+        tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
+    }
     delete[] convolutionMatrix;
     delete[] aif;
     LOGI << io::xprintf("END %s", argv[0]);

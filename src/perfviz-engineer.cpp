@@ -54,6 +54,9 @@ struct Arguments
 
     uint32_t baseSize;
 
+    // Compute only ttp
+    bool onlyttp = false;
+
 #ifdef DEBUG
     /**Vizualize base functions.
      *
@@ -88,6 +91,7 @@ int Arguments::parseArguments(int argc, char* argv[])
 #if DEBUG
     app.add_flag("-v,--vizualize", vizualize, "Vizualize engineered basis.");
 #endif
+    app.add_flag("--ttp", onlyttp, "Compute only ttp.");
     app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
     app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
     app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
@@ -214,9 +218,12 @@ int main(int argc, char* argv[])
     util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.startTime, a.endTime,
                                     a.secLength, a.threads);
     LOGD << "TTP computation.";
-    tsd.computeTTP(a.granularity, ttp_w);
-    LOGD << "CBV, CBF and MTT computation.";
-    tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
+    tsd.computeTTP(a.granularity, ttp_w, aif);
+    if(!a.onlyttp)
+    {
+        LOGD << "CBV, CBF and MTT computation.";
+        tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
+    }
     delete[] convolutionMatrix;
     delete[] aif;
     LOGI << io::xprintf("END %s", argv[0]);

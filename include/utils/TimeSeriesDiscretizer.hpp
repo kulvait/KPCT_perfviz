@@ -70,20 +70,24 @@ public:
      *
      *@param[in] z Zero based z coordinate of the volume.
      *@param[in] granularity How much time instants should be used to discretize time interval.
+     * @param[in] startIndex Index from which start searching maximum. It can be peak of AIF.
      */
-    void writePeakFrame(int z, int granularity, std::shared_ptr<io::AsyncFrame2DWritterI<float>> w)
+    void writePeakFrame(int z,
+                        int granularity,
+                        std::shared_ptr<io::AsyncFrame2DWritterI<float>> w,
+                        int startIndex = 0)
     {
-        float time = intervalStart;
         float dt = (intervalEnd - intervalStart) / float(granularity - 1);
+        float time = intervalStart + startIndex * dt;
         float *maxval, *val;
         maxval = new float[dimx * dimy];
         val = new float[dimx * dimy * granularity];
         attenuationEvaluator->frameTimeSeries(z, granularity, val);
-        std::memcpy(maxval, val, dimx * dimy * sizeof(float));
+        std::memcpy(maxval, &val[dimx * dimy * startIndex], dimx * dimy * sizeof(float));
 
         io::BufferedFrame2D<float> pt(float(intervalStart / secLength), dimx,
                                       dimy); // Init buffer by time at the begining
-        for(int i = 0; i < granularity; i++)
+        for(int i = startIndex; i < granularity; i++)
         {
             for(int x = 0; x != dimx; x++)
             {
@@ -105,19 +109,37 @@ public:
     }
 
     /** Computes the second from zero in which attenuation is maximal.
+     * @brief
      *
      *@param[in] granularity How much time instants should be used to discretize time interval.
      *@param[in] w The result should be written into the volume through this frame writter
      *interface.
+     * @param[in] aif Arthery input function. If null, computes from the whole time interval, if not
+     *null computes from the maximum of aif.
      */
-    void computeTTP(int granularity, std::shared_ptr<io::AsyncFrame2DWritterI<float>> w)
+    void computeTTP(int granularity,
+                    std::shared_ptr<io::AsyncFrame2DWritterI<float>> w,
+                    float* aif = nullptr)
     {
+        int maxindex = 0;
+        if(aif != nullptr)
+        {
+            float max = aif[0];
+            for(int i = 0; i != granularity; i++)
+            {
+                if(max > aif[i])
+                {
+                    maxindex = i;
+                    max = aif[i];
+                }
+            }
+        }
         if(threads == 0)
         {
             LOGD << io::xprintf("Function computeTTP working synchronously without threading.");
             for(int z = 0; z != dimz; z++)
             {
-                writePeakFrame(z, granularity, w); // For testing normal
+                writePeakFrame(z, granularity, w, maxindex); // For testing normal
             }
         } else
         {
@@ -126,8 +148,9 @@ public:
             ctpl::thread_pool* threadpool = new ctpl::thread_pool(threads);
             for(int z = 0; z != dimz; z++)
             {
-                threadpool->push(
-                    [&, this, z, granularity, w](int id) { writePeakFrame(z, granularity, w); });
+                threadpool->push([&, this, z, granularity, w, maxindex](int id) {
+                    writePeakFrame(z, granularity, w, maxindex);
+                });
             }
             threadpool->stop(true);
             delete threadpool;
