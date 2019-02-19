@@ -55,19 +55,33 @@ add_custom_target(formatWebkit
 ./formatWebkit
 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-SET(PERFVIZ_SOURCES src/perfviz.cpp)
-add_executable(perfviz ${PERFVIZ_SOURCES})
+SET(PERFVIZ_LEGENDRE_SOURCES src/perfviz-legendre.cpp)
+add_executable(perfvizLegendre ${PERFVIZ_LEGENDRE_SOURCES})
 set_target_properties(
-    perfviz 
+    perfvizLegendre
     PROPERTIES 
-        OUTPUT_NAME "perfviz"
+        OUTPUT_NAME "perfviz-legendre"
         SUFFIX ""
 )
-target_link_libraries(perfviz ctiol)
-target_link_libraries (perfviz ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(perfviz ${MKL_CORE_LIBRARY})
-target_link_libraries(perfviz ${PYTHON_LIBRARIES})
-install (TARGETS perfviz RUNTIME DESTINATION .)
+target_link_libraries(perfvizLegendre ctiol)
+target_link_libraries(perfvizLegendre ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(perfvizLegendre ${MKL_CORE_LIBRARY})
+target_link_libraries(perfvizLegendre ${PYTHON_LIBRARIES})
+install (TARGETS perfvizLegendre RUNTIME DESTINATION .)
+
+SET(PERFVIZ_FOURIER_SOURCES src/perfviz-fourier.cpp)
+add_executable(perfvizFourier ${PERFVIZ_FOURIER_SOURCES})
+set_target_properties(
+    perfvizFourier 
+    PROPERTIES 
+        OUTPUT_NAME "perfviz-fourier"
+        SUFFIX ""
+)
+target_link_libraries(perfvizFourier ctiol)
+target_link_libraries (perfvizFourier ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(perfvizFourier ${MKL_CORE_LIBRARY})
+target_link_libraries(perfvizFourier ${PYTHON_LIBRARIES})
+install (TARGETS perfvizFourier RUNTIME DESTINATION .)
 
 SET(PERFVIZXXX_SOURCES src/perfviz-engineer.cpp)
 add_executable(perfviz_engineer ${PERFVIZXXX_SOURCES})
