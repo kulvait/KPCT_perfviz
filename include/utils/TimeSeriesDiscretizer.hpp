@@ -127,7 +127,7 @@ public:
             float max = aif[0];
             for(int i = 0; i != granularity; i++)
             {
-                if(max > aif[i])
+                if(max < aif[i])
                 {
                     maxindex = i;
                     max = aif[i];
