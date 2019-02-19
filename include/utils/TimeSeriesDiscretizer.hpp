@@ -85,7 +85,7 @@ public:
         attenuationEvaluator->frameTimeSeries(z, granularity, val);
         std::memcpy(maxval, &val[dimx * dimy * startIndex], dimx * dimy * sizeof(float));
 
-        io::BufferedFrame2D<float> pt(float(intervalStart / secLength), dimx,
+        io::BufferedFrame2D<float> pt(float(time / secLength), dimx,
                                       dimy); // Init buffer by time at the begining
         for(int i = startIndex; i < granularity; i++)
         {
