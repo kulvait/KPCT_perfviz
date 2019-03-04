@@ -40,8 +40,12 @@ struct Arguments
     /// Number of threads
     int threads = 1;
 
-    /// Controls the size of the time interval [ms] that should be identified with 0.0.
-    float startTime = 4117, endTime = 56000;
+    /**
+     * The first sweep and the last sweep should be identified with the ends of the interval.
+     * startTime default is the end of the first sweep and endTime is the start of the last sweep
+     * Data are from the experiments. Controls interval [ms].
+     */
+    float startTime = 4145, endTime = 43699;
 
     /// Granularity of the time is number of time points analyzed by i.e. convolution
     int granularity = 100;
@@ -62,11 +66,11 @@ int Arguments::parseArguments(int argc, char* argv[])
         ->check(CLI::Range(1, 65535));
     app.add_option("-i,--start-time", startTime,
                    "Start of the interval in miliseconds of the support of the functions of time "
-                   "[defaults to 4117, 247*16.6].")
+                   "[defaults to 4145].")
         ->check(CLI::Range(0.0, 100000.0));
     app.add_option("-e,--end-time", endTime,
                    "End of the interval in miliseconds of the support of the functions of time "
-                   "[defaults to 56000, duration of 9 sweeps].")
+                   "[defaults to 43699, duration of 9 sweeps].")
         ->check(CLI::Range(0.0, 100000.0));
     app.add_option("-g,--granularity", granularity,
                    "Granularity of the time is number of time points to which time interval is "

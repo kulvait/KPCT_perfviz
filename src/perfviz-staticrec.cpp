@@ -38,10 +38,10 @@ struct Arguments
     uint16_t threads = 0;
 
     /// Times between starts of consecutive sweeps [ms].
-    float sweepTime = 6206;
+    float sweepTime = 5316;
 
     /// Offset at the beginning.
-    float sweepOffset = 2050;
+    float sweepOffset = 2072.5;
 
     /// Coordinates of arthery input function
     uint16_t ifx, ify, ifz;
@@ -76,11 +76,11 @@ int Arguments::parseArguments(int argc, char* argv[])
         ->check(CLI::Range(0, 65535));
     app.add_option("-i,--sweep-time", sweepTime,
                    "Sweep time between the starts of two consecutive acquisitions in miliseconds."
-                   "[defaults to 6206, 247*16.6+2089].")
+                   "[defaults to 5316].")
         ->check(CLI::Range(0.0, 100000.0));
     app.add_option("-e,--sweep-offset", sweepOffset,
                    "Offset at the beginning and at the end of aquisition in seconds/1000."
-                   "[defaults to 2050, 247*16.6/2].")
+                   "[defaults to 2072.5].")
         ->check(CLI::Range(0.0, 100000.0));
     app.add_option("-g,--granularity", granularity,
                    "Granularity of the time is number of time points to which time interval is "

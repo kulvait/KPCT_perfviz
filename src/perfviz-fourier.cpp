@@ -39,8 +39,12 @@ struct Arguments
     /// Number of threads
     uint16_t threads = 0;
 
-    /// Controls the size of the time interval [ms] that should be identified with 0.0.
-    float startTime = 4117, endTime = 56000;
+    /**
+     * The first sweep and the last sweep should be identified with the ends of the interval.
+     * startTime default is the end of the first sweep and endTime is the start of the last sweep
+     * Data are from the experiments. Controls interval [ms].
+     */
+    float startTime = 4145, endTime = 43699;
 
     /// Coordinates of arthery input function
     uint16_t ifx, ify, ifz;
