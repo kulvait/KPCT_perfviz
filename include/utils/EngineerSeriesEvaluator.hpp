@@ -392,8 +392,8 @@ void EngineerSeriesEvaluator::frameTimeSeries(const uint16_t z,
     frameAt_intervalStart(z, val);
     for(uint32_t i = 1; i < granularity; i++)
     {
-        frameAt_customOffset(z, time, val, &val[i * dimx * dimy]);
         time += increment;
+        frameAt_customOffset(z, time, val, &val[i * dimx * dimy]);
     }
     std::fill_n(val, dimx * dimy, float(0.0)); // At time zero is concentration zero
 }

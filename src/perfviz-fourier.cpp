@@ -57,6 +57,10 @@ struct Arguments
 
     // Write only ttp
     bool onlyttp = false;
+    bool allowNegativeValues = false;
+
+    // Tikhonov regularization parameter
+    float lambdaRel = 0.2;
 
 #ifdef DEBUG
     /**Vizualize base functions.
@@ -89,6 +93,8 @@ int Arguments::parseArguments(int argc, char* argv[])
     app.add_option("-c,--sec-length", secLength,
                    "Length of one second in the units of the domain. Defaults to 1000.")
         ->check(CLI::Range(0.0, 1000000.0));
+    app.add_option("--lambda-rel", lambdaRel,
+                   "Tikhonov regularization parameter, defaults to 0.2.");
     app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
     app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
     app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
@@ -102,6 +108,8 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "coeficient that corresponds to the constant.")
         ->required()
         ->check(CLI::ExistingFile);
+    app.add_flag("--only-ttp", onlyttp, "Report TTP only.");
+    app.add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
 #ifdef DEBUG
     app.add_flag("-v,--vizualize", vizualize, "Vizualize engineered basis.");
 #endif
@@ -159,8 +167,9 @@ int main(int argc, char* argv[])
     dimy = di.dimy();
     dimz = di.dimz();
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
-        = std::make_shared<util::FourierSeriesEvaluator>(
-            a.fittedCoefficients.size(), a.fittedCoefficients, a.startTime, a.endTime);
+        = std::make_shared<util::FourierSeriesEvaluator>(a.fittedCoefficients.size(),
+                                                         a.fittedCoefficients, a.startTime,
+                                                         a.endTime, !a.allowNegativeValues);
     // Vizualization
     float* convolutionMatrix = new float[a.granularity * a.granularity];
     float* aif = new float[a.granularity];
@@ -186,28 +195,34 @@ int main(int argc, char* argv[])
     }
 #endif
     bool truncatedInstead = false;
-    float lambdaRel = 0.2;
-    utils::TikhonovInverse ti(lambdaRel, truncatedInstead);
+    //    a.lambdaRel = 0.0;
+    utils::TikhonovInverse ti(a.lambdaRel, truncatedInstead);
     ti.computePseudoinverse(convolutionMatrix, a.granularity);
+    // Test what is the projection of convolutionMatrix to the last element of aif
+
+    util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.startTime, a.endTime,
+                                    a.secLength, a.threads);
+    if(a.vizualize)
+    {
+        tsd.visualizeConvolutionKernel(a.ifx, a.ify, a.ifz, a.granularity, convolutionMatrix);
+    }
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> ttp_w
         = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
             io::xprintf("%s/TTP.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/CBF.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/CBV.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/MTT.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, a.startTime, a.endTime,
-                                    a.secLength, a.threads);
     LOGD << "TTP computation.";
     tsd.computeTTP(a.granularity, ttp_w, aif);
     if(!a.onlyttp)
     {
         LOGD << "CBV, CBF and MTT computation.";
+        std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w
+            = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
+                io::xprintf("%s/CBF.den", a.outputFolder.c_str()), dimx, dimy, dimz);
+        std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w
+            = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
+                io::xprintf("%s/CBV.den", a.outputFolder.c_str()), dimx, dimy, dimz);
+        std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w
+            = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
+                io::xprintf("%s/MTT.den", a.outputFolder.c_str()), dimx, dimy, dimz);
         tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
     }
     delete[] convolutionMatrix;

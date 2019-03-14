@@ -7,6 +7,9 @@
 #include "BufferedFrame2D.hpp"
 #include "SVD/TikhonovInverse.hpp"
 #include "utils/Attenuation4DEvaluatorI.hpp"
+#include "matplotlibcpp.h"
+
+namespace plt = matplotlibcpp;
 
 namespace CTL::util {
 
@@ -155,6 +158,39 @@ public:
             threadpool->stop(true);
             delete threadpool;
         }
+    }
+
+    void visualizeConvolutionKernel(
+        uint32_t x, uint32_t y, uint32_t z, int granularity, float* convolutionInverse)
+    {
+        std::string figtitle = io::xprintf("Convolution kernel (x,y,z) = (%d,%d,%d).", x, y, z);
+        float* values = new float[dimx * dimy * granularity];
+        float* convol = new float[dimx * dimy * granularity]();
+        float* kernel = new float[granularity];
+        attenuationEvaluator->frameTimeSeries(z, granularity, values);
+        for(int i = 0; i != granularity; i++)
+        {
+            for(int j = 0; j != granularity; j++)
+            {
+                convol[i * dimx * dimy + y * dimx + x] += convolutionInverse[i * granularity + j]
+                    * values[j * dimx * dimy + y * dimx + x];
+            }
+            kernel[i] = convol[i * dimx * dimy + y * dimx + x];
+        }
+        std::vector<double> taxis;
+        std::vector<double> plotme;
+        for(int i = 0; i != granularity; i++)
+        {
+            plotme.push_back(kernel[i]);
+            taxis.push_back(i);
+        }
+	LOGD << io::xprintf("First kernel element is %f, last kernel element is %f.",kernel[0], kernel[granularity-1]);
+        plt::plot(taxis, plotme);
+	plt::title(figtitle);
+        plt::show();
+        delete[] kernel;
+        delete[] values;
+        delete[] convol;
     }
 
     /**Writes the z frames of perfusion parameters integral of deconvolution vector elements,

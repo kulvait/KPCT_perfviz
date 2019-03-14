@@ -19,11 +19,13 @@ public:
      *polynomials.
      *@param[in] intervalStart Start time.
      *@param[in] intervalEnd End time.
+     *@param[in] negativeAsZero Negative value is treated as zero.
      */
     FourierSeriesEvaluator(uint32_t degree,
                            std::vector<std::string> coefficientVolumeFiles,
                            float intervalStart,
-                           float intervalEnd);
+                           float intervalEnd,
+                           bool negativeAsZero = true);
 
     /**Destructor of FourierSeriesEvaluator class
      *
@@ -151,15 +153,18 @@ private:
      *
      */
     void updateFramesStored(const uint16_t z);
+    bool negativeAsZero;
 };
 
 FourierSeriesEvaluator::FourierSeriesEvaluator(uint32_t degree,
                                                std::vector<std::string> coefficientVolumeFiles,
                                                float intervalStart,
-                                               float intervalEnd)
+                                               float intervalEnd,
+                                               bool negativeAsZero)
     : degree(degree)
     , intervalStart(intervalStart)
     , intervalEnd(intervalEnd)
+    , negativeAsZero(negativeAsZero)
 {
     if(coefficientVolumeFiles.size() != degree)
     {
@@ -202,7 +207,7 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(uint32_t degree,
     storedZ = 0;
     for(uint32_t i = 1; i < degree; i++)
     {
-        framesStored.push_back(coefficientVolumes[i-1]->readFrame(storedZ));
+        framesStored.push_back(coefficientVolumes[i - 1]->readFrame(storedZ));
     }
     valuesAtStart = new float[dimx * dimy](); // Constructor is not filling this array
 }
@@ -255,7 +260,10 @@ float FourierSeriesEvaluator::valueAt(const uint16_t x,
 {
     float val0 = valueAt_intervalStart(x, y, z);
     float v = valueAt_withoutOffset(x, y, z, t);
-    return std::max(float(0), v - val0);
+    if(negativeAsZero)
+        return std::max(float(0), v - val0);
+    else
+        return v - val0;
 }
 
 void FourierSeriesEvaluator::updateCoefficientsStored(const float t)
@@ -275,7 +283,7 @@ void FourierSeriesEvaluator::updateFramesStored(const uint16_t z)
         framesStored.clear();
         for(uint32_t i = 1; i < degree; i++)
         {
-            framesStored.push_back(coefficientVolumes[i-1]->readFrame(z));
+            framesStored.push_back(coefficientVolumes[i - 1]->readFrame(z));
         }
         storedZ = z;
     }
@@ -339,7 +347,14 @@ void FourierSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val
             {
                 val[y * dimx + x] += coefficientsStoredTime[d - 1] * framesStored[d - 1]->get(x, y);
             }
-            val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - valuesAtStart[y * dimx + x]);
+            if(negativeAsZero)
+            {
+                val[y * dimx + x]
+                    = std::max(float(0), val[y * dimx + x] - valuesAtStart[y * dimx + x]);
+            } else
+            {
+                val[y * dimx + x] = val[y * dimx + x] - valuesAtStart[y * dimx + x];
+            }
         }
     }
 }
@@ -361,7 +376,13 @@ void FourierSeriesEvaluator::frameAt_customOffset(const uint16_t z,
             {
                 val[y * dimx + x] += coefficientsStoredTime[d - 1] * framesStored[d - 1]->get(x, y);
             }
-            val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - offset[y * dimx + x]);
+            if(negativeAsZero)
+            {
+                val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - offset[y * dimx + x]);
+            } else
+            {
+                val[y * dimx + x] = val[y * dimx + x] - offset[y * dimx + x];
+            }
         }
     }
 }
@@ -395,8 +416,8 @@ void FourierSeriesEvaluator::frameTimeSeries(const uint16_t z,
     frameAt_intervalStart(z, val);
     for(uint32_t i = 1; i < granularity; i++)
     {
-        frameAt_customOffset(z, time, val, &val[i * dimx * dimy]);
         time += increment;
+        frameAt_customOffset(z, time, val, &val[i * dimx * dimy]);
     }
     std::fill_n(val, dimx * dimy, float(0.0)); // At time zero is concentration zero
 }
