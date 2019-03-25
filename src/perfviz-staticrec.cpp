@@ -63,6 +63,7 @@ struct Arguments
      *If set vizualize base functions using Python.
      */
     bool vizualize = false;
+    bool onlyaif = false;
 #endif
 };
 
@@ -91,6 +92,7 @@ int Arguments::parseArguments(int argc, char* argv[])
         ->check(CLI::Range(0.0, 1000000.0));
 #if DEBUG
     app.add_flag("-v,--vizualize", vizualize, "Vizualize engineered basis.");
+    app.add_flag("--aif", onlyaif, "Vizualize only aif.");
 #endif
     app.add_flag("--ttp", onlyttp, "Compute only ttp.");
     app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
@@ -191,6 +193,10 @@ int main(int argc, char* argv[])
         plt::plot(taxis, plotme);
         plt::show();
         delete[] _taxis;
+    }
+    if(a.onlyaif)
+    {
+        return 0;
     }
 #endif
     bool truncatedInstead = false;
