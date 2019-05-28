@@ -190,7 +190,11 @@ int main(int argc, char* argv[])
             plotme.push_back(aif[i]);
             taxis.push_back(_taxis[i]);
         }
+        std::shared_ptr<util::ReconstructedSeriesEvaluator> concrse = std::dynamic_pointer_cast<util::ReconstructedSeriesEvaluator>(concentration);
         plt::plot(taxis, plotme);
+        std::vector<double> taxis_scatter = concrse->nativeTimeDiscretization();
+        std::vector<double> plotme_scatter = concrse->nativeValuesIn(a.ifx, a.ify, a.ifz);
+        plt::plot(taxis_scatter, plotme_scatter);
         plt::show();
         delete[] _taxis;
     }

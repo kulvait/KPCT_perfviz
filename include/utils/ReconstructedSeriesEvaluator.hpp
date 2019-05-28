@@ -46,6 +46,23 @@ public:
      */
     bool isTimeDiscretizedEvenly() override;
 
+    /** Time points in which we have exact information
+     *
+     *
+     * @return
+     */
+    std::vector<double> nativeTimeDiscretization();
+
+    /** Values of the fuction in the nativeTimeDiscretization times in a given point.
+     *
+     *@param[in] x Zero based x coordinate of the volume.
+     *@param[in] y Zero based y coordinate of the volume.
+     *@param[in] z Zero based z coordinate of the volume.
+     *
+     * @return
+     */
+    std::vector<double> nativeValuesIn(const uint16_t x, const uint16_t y, const uint16_t z);
+
     /**Function to evaluate time series in given point.
      *
      *@param[in] x Zero based x coordinate of the volume.
@@ -243,6 +260,30 @@ void ReconstructedSeriesEvaluator::timeDiscretization(const uint32_t granularity
         timePoints[i] = float(time);
         time += increment;
     }
+}
+
+std::vector<double>
+ReconstructedSeriesEvaluator::nativeValuesIn(const uint16_t x, const uint16_t y, const uint16_t z)
+{
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    std::vector<double> values;
+    updateStoredVals(z);
+    fillBreakpointsY(x, y);
+    for(uint32_t i = 0; i != breakpointsNum; i++)
+    {
+        values.push_back(breakpointsY[i]);
+    }
+    return values;
+}
+
+std::vector<double> ReconstructedSeriesEvaluator::nativeTimeDiscretization()
+{
+    std::vector<double> nativeTimes;
+    for(uint32_t i = 0; i != breakpointsNum; i++)
+    {
+        nativeTimes.push_back(breakpointsT[i]);
+    }
+    return nativeTimes;
 }
 
 void ReconstructedSeriesEvaluator::timeDiscretizationDouble(const uint32_t granularity,

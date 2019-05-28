@@ -195,6 +195,11 @@ int main(int argc, char* argv[])
             taxis.push_back(_taxis[i]);
         }
         plt::plot(taxis, plotme);
+        std::shared_ptr<util::CTEvaluator> conct = std::dynamic_pointer_cast<util::CTEvaluator>(concentration);
+        plt::plot(taxis, plotme);
+        std::vector<double> taxis_scatter = conct->nativeTimeDiscretization(a.ifz);
+        std::vector<double> plotme_scatter = conct->nativeValuesIn(a.ifx, a.ify, a.ifz);
+        plt::plot(taxis_scatter, plotme_scatter);
         plt::show();
         delete[] _taxis;
     }

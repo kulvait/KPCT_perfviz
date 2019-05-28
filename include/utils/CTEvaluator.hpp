@@ -7,8 +7,8 @@
 #include "mkl.h"
 
 #include "SPLINE/SplineFitter.hpp"
-#include "utils/Attenuation4DEvaluatorI.hpp"
 #include "matplotlibcpp.h"
+#include "utils/Attenuation4DEvaluatorI.hpp"
 
 namespace plt = matplotlibcpp;
 
@@ -62,6 +62,16 @@ public:
                       const uint32_t granularity,
                       float* aif) override;
 
+    /**Function to vizualize time series in given point.
+     *
+     *@param[in] x Zero based x coordinate of the volume.
+     *@param[in] y Zero based y coordinate of the volume.
+     *@param[in] z Zero based z coordinate of the volume.
+     *@param[in] granularity Number of time points to fill in aif array with.
+     */
+    void
+    vizualizeIn(const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity);
+
     /**Function to evaluate the value of attenuation at (x,y,z,t).
      *
      *@param[in] x Zero based x coordinate of the volume.
@@ -88,6 +98,24 @@ public:
      *granularity*dimx*dimy.
      */
     void frameTimeSeries(const uint16_t z, const uint32_t granularity, float* val) override;
+
+    /** Time points in which we have exact information
+     *
+     *@param[in] z Zero based z coordinate of the volume.
+     *
+     * @return
+     */
+    std::vector<double> nativeTimeDiscretization(const uint16_t z);
+
+    /** Values of the fuction in the nativeTimeDiscretization times in a given point.
+     *
+     *@param[in] x Zero based x coordinate of the volume.
+     *@param[in] y Zero based y coordinate of the volume.
+     *@param[in] z Zero based z coordinate of the volume.
+     *
+     * @return
+     */
+    std::vector<double> nativeValuesIn(const uint16_t x, const uint16_t y, const uint16_t z);
 
 private:
     /**Function to obtain time discretization as double array.
@@ -326,8 +354,10 @@ void CTEvaluator::updateStoredDiscretization(const uint32_t granularity)
 
 bool CTEvaluator::isTimeDiscretizedEvenly() { return true; }
 
-void CTEvaluator::timeSeriesIn(
-    const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)
+void CTEvaluator::vizualizeIn(const uint16_t x,
+                              const uint16_t y,
+                              const uint16_t z,
+                              const uint32_t granularity)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateStoredDiscretization(granularity);
@@ -348,27 +378,67 @@ void CTEvaluator::timeSeriesIn(
     // See
     // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
     fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer);
-        std::vector<double> taxis;
-        std::vector<double> plotme;
-        for(uint32_t i = 0; i != granularity; i++)
-        {
-            plotme.push_back(storedInterpolationBuffer[i]);
-            taxis.push_back(storedTimeDiscretization[i]);
-        }
-        plt::plot(taxis, plotme);
-        std::vector<double> taxis_scatter;
-        std::vector<double> plotme_scatter;
-	for(uint32_t i = 0; i != storedVals.size(); i++)
-	{
-		taxis_scatter.push_back(breakpointsT[i]);
-		plotme_scatter.push_back(breakpointsY[i]);
-	}
-	plt::plot(taxis_scatter, plotme_scatter);
-        plt::show();
+    std::vector<double> taxis;
+    std::vector<double> plotme;
+    for(uint32_t i = 0; i != granularity; i++)
+    {
+        plotme.push_back(storedInterpolationBuffer[i]);
+        taxis.push_back(storedTimeDiscretization[i]);
+    }
+    plt::plot(taxis, plotme);
+    std::vector<double> taxis_scatter;
+    std::vector<double> plotme_scatter;
+    for(uint32_t i = 0; i != storedVals.size(); i++)
+    {
+        taxis_scatter.push_back(breakpointsT[i]);
+        plotme_scatter.push_back(breakpointsY[i]);
+    }
+    plt::plot(taxis_scatter, plotme_scatter);
+    plt::show();
+}
+
+std::vector<double>
+CTEvaluator::nativeValuesIn(const uint16_t x, const uint16_t y, const uint16_t z)
+{
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    std::vector<double> values;
+    updateStoredVals(z);
+    fillBreakpointsY(x, y);
+    for(uint32_t i = 0; i != breakpointsNum; i++)
+    {
+        values.push_back(breakpointsY[i]);
+    }
+    return values;
+}
+
+std::vector<double> CTEvaluator::nativeTimeDiscretization(const uint16_t z)
+{
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    updateStoredVals(z);
+    std::vector<double> nativeTimes;
+    for(uint32_t i = 0; i != breakpointsNum; i++)
+    {
+        nativeTimes.push_back(breakpointsT[i]);
+    }
+    return nativeTimes;
+}
+
+void CTEvaluator::timeSeriesIn(
+    const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)
+{
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    updateStoredDiscretization(granularity);
+    updateStoredVals(z);
+    fillBreakpointsY(x, y);
+    fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
+    // See
+    // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
+    fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer);
     float v0 = storedInterpolationBuffer[0];
     for(uint32_t i = 0; i != granularity; i++)
     {
-	LOGD << io::xprintf("The granularity %d that corresponds to t=%f the value is %f.", i, storedTimeDiscretization[i], storedInterpolationBuffer[i]);
+        LOGD << io::xprintf("The granularity %d that corresponds to t=%f the value is %f.", i,
+                            storedTimeDiscretization[i], storedInterpolationBuffer[i]);
         val[i] = std::max(float(0), float(storedInterpolationBuffer[i] - v0));
     }
 }
@@ -400,7 +470,7 @@ void CTEvaluator::updateStoredVals(const uint16_t z)
         {
             t = tickData[i]->readFrame(z)->get(4, 0);
             breakpointsT[i] = t;
-            storedTimes.push_back(tickData[i]->readFrame(z)->get(4, 0));
+            storedTimes.push_back(t);
             storedVals.push_back(attenuationVolumes[i]->readFrame(z));
         }
         storedZ = z;
