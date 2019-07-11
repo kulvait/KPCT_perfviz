@@ -412,7 +412,7 @@ void ReconstructedSeriesEvaluator::frameAt(const uint16_t z, const float t, floa
             fillBreakpointsY(x, y);
             fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
             fitter->interpolateAt(1, &at, &v);
-            val[y * dimx + x] = std::min(float(0), float(v - storedVals[0]->get(x, y)));
+            val[y * dimx + x] = std::max(float(0), float(v - storedVals[0]->get(x, y)));
         }
     }
 }

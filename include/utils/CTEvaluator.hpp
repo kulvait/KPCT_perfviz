@@ -17,16 +17,21 @@ namespace CTL::util {
 class CTEvaluator : public Attenuation4DEvaluatorI
 {
 public:
-    /**Evaluation of the attenuation values based on the Engineered basis.
+    /**Evaluation of the attenuation values based on CT data with tick files.
      *
-     *@param[in] sampledBasisFunctions Sampled basis functions in a DEN file the number of sampling
-     *points is equal to dimx and dimz is a number of functions.
-     *@param[in] coefficientVolumeFiles Files with fitted coefficient volumes.
-     *@param[in] intervalStart Start time.
-     *@param[in] intervalEnd End time.
+     * @param coefficientVolumeFiles CT data files
+     * @param tickFiles Annotation of CT data
+     * @param zeroStartOffset If the reported TACs by Attenuation4DEvaluatorI public functions
+     * should be offsetted such that at start of the discretization that corresponds to the time of
+     * the acquisition of the first frame from given z stack they should be reported 0.0 or original
+     * value if false. Defaults to true.
+     * @param minimumAttenuationValue Minimum attenuation value to report by Attenuation4DEvaluatorI
+     * public functions, if the attenuation is smaller, this value is reported. Defaults to 0.0.
      */
     CTEvaluator(std::vector<std::string>& coefficientVolumeFiles,
-                std::vector<std::string>& tickFiles);
+                std::vector<std::string>& tickFiles,
+                bool zeroStartOffset = true,
+                float minimumAttenuationValue = 0.0);
 
     /**Destructor of CTEvaluator class
      *
@@ -201,12 +206,19 @@ private:
      *
      */
     void updateStoredVals(const uint16_t z);
+
+    bool zeroStartOffset;
+    float minimumAttenuationValue;
 };
 
 /*The interval starts by the maximum time value of the first volume and ends by the minimum time
  * value of the last volume*/
 CTEvaluator::CTEvaluator(std::vector<std::string>& attenuationVolumeFiles,
-                         std::vector<std::string>& tickFiles)
+                         std::vector<std::string>& tickFiles,
+                         bool zeroStartOffset,
+                         float minimumAttenuationValue)
+    : zeroStartOffset(zeroStartOffset)
+    , minimumAttenuationValue(minimumAttenuationValue)
 {
 
     if(attenuationVolumeFiles.size() < 2)
@@ -434,12 +446,17 @@ void CTEvaluator::timeSeriesIn(
     // See
     // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
     fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer);
-    float v0 = storedInterpolationBuffer[0];
+    float startOffset = 0.0;
+    if(zeroStartOffset)
+    {
+        startOffset = storedInterpolationBuffer[0];
+    }
     for(uint32_t i = 0; i != granularity; i++)
     {
-        LOGD << io::xprintf("The granularity %d that corresponds to t=%f the value is %f.", i,
-                            storedTimeDiscretization[i], storedInterpolationBuffer[i]);
-        val[i] = std::max(float(0), float(storedInterpolationBuffer[i] - v0));
+        // LOGD << io::xprintf("The granularity %d that corresponds to t=%f the value is %f.", i,
+        //                    storedTimeDiscretization[i], storedInterpolationBuffer[i]);
+        val[i]
+            = std::max(minimumAttenuationValue, float(storedInterpolationBuffer[i] - startOffset));
     }
 }
 
@@ -453,9 +470,13 @@ void CTEvaluator::fillBreakpointsY(const uint16_t x, const uint16_t y)
 
 float CTEvaluator::valueAt(const uint16_t x, const uint16_t y, const uint16_t z, const float t)
 {
-    float val0 = valueAt_withoutOffset(x, y, z, intervalStart);
+    float startOffset = 0.0;
+    if(zeroStartOffset)
+    {
+        startOffset = valueAt_intervalStart(x, y, z);
+    }
     float v = valueAt_withoutOffset(x, y, z, t);
-    return std::max(float(0), v - val0);
+    return std::max(minimumAttenuationValue, v - startOffset);
 }
 
 void CTEvaluator::updateStoredVals(const uint16_t z)
@@ -509,14 +530,19 @@ void CTEvaluator::frameAt(const uint16_t z, const float t, float* val)
     updateStoredVals(z);
     double v;
     double at = (double)t;
+    float startOffset = 0.0;
     for(int y = 0; y != dimy; y++)
     {
         for(int x = 0; x != dimx; x++)
         {
+            if(zeroStartOffset)
+            {
+                startOffset = storedVals[0]->get(x, y);
+            }
             fillBreakpointsY(x, y);
             fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
             fitter->interpolateAt(1, &at, &v);
-            val[y * dimx + x] = std::min(float(0), float(v - storedVals[0]->get(x, y)));
+            val[y * dimx + x] = std::max(minimumAttenuationValue, float(v - startOffset));
         }
     }
 }
@@ -526,6 +552,7 @@ void CTEvaluator::frameTimeSeries(const uint16_t z, const uint32_t granularity, 
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateStoredDiscretization(granularity);
     updateStoredVals(z);
+    float startOffset = 0.0;
     for(int x = 0; x != dimx; x++)
     {
         for(int y = 0; y != dimy; y++)
@@ -535,11 +562,14 @@ void CTEvaluator::frameTimeSeries(const uint16_t z, const uint32_t granularity, 
             // See
             // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
             fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer);
-            float v0 = storedInterpolationBuffer[0];
+            if(zeroStartOffset)
+            {
+                startOffset = storedInterpolationBuffer[0];
+            }
             for(uint32_t i = 0; i != granularity; i++)
             {
                 val[y * dimx + x + i * dimx * dimy]
-                    = std::max(float(0), float(storedInterpolationBuffer[i] - v0));
+                    = std::max(minimumAttenuationValue, float(storedInterpolationBuffer[i] - startOffset));
             }
         }
     }

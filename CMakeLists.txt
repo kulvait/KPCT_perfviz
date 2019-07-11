@@ -125,6 +125,20 @@ target_link_libraries(perfviz_ctrec ${MKL_CORE_LIBRARY})
 target_link_libraries(perfviz_ctrec ${PYTHON_LIBRARIES})
 install (TARGETS perfviz_ctrec RUNTIME DESTINATION .)
 
+SET(PERFVIZCTVOL_SOURCES src/perfviz-ctvol.cpp)
+add_executable(perfviz_ctvol ${PERFVIZCTVOL_SOURCES})
+set_target_properties(
+    perfviz_ctvol 
+    PROPERTIES 
+        OUTPUT_NAME "perfviz-ctvol"
+        SUFFIX ""
+)
+target_link_libraries(perfviz_ctvol ctiol)
+target_link_libraries (perfviz_ctvol ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(perfviz_ctvol ${MKL_CORE_LIBRARY})
+target_link_libraries(perfviz_ctvol ${PYTHON_LIBRARIES})
+install (TARGETS perfviz_ctvol RUNTIME DESTINATION .)
+
 SET(CONTVIZ_SOURCES src/contviz.cpp)
 add_executable(contviz ${CONTVIZ_SOURCES})
 set_target_properties(
