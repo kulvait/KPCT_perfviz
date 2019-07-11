@@ -252,15 +252,15 @@ int main(int argc, char* argv[])
     double t = 0.0;
     for(uint32_t sweepid = 0; sweepid != 10; sweepid++)
     {
-        for(int z = 0; z != dimz; z++)
+        for(uint32_t angleid = 0; angleid != a.anglesPerSweep; angleid++)
         {
-            t = a.startOffset + sweepid * totalSweepTime + z * a.frameTime;
+            t = a.startOffset + sweepid * totalSweepTime + angleid * a.frameTime;
             t /= a.secLength;
             std::string msg = io::xprintf(
-                "File Volume%02d_%03d.den corresponds to the CT time %0.2f.", sweepid, z, t);
-            LOGI << msg;
+                "File Volume%02d_%03d.den corresponds to the CT time %0.2f.", sweepid, angleid, t);
+            LOGW << msg;
             volumeWritter = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-                io::xprintf("%s/Volume%02d_%03d.den", a.outputFolder.c_str(), sweepid, z), dimx,
+                io::xprintf("%s/Volume%02d_%03d.den", a.outputFolder.c_str(), sweepid, angleid), dimx,
                 dimy, dimz);
             if(threadpool != nullptr)
             {
