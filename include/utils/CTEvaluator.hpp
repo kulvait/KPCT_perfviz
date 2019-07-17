@@ -21,6 +21,8 @@ public:
      *
      * @param coefficientVolumeFiles CT data files
      * @param tickFiles Annotation of CT data
+     * @param allowExtrapolation If true t can be extrapolated, if false t will be restricted to the
+     * spline range.
      * @param zeroStartOffset If the reported TACs by Attenuation4DEvaluatorI public functions
      * should be offsetted such that at start of the discretization that corresponds to the time of
      * the acquisition of the first frame from given z stack they should be reported 0.0 or original
@@ -30,6 +32,7 @@ public:
      */
     CTEvaluator(std::vector<std::string>& coefficientVolumeFiles,
                 std::vector<std::string>& tickFiles,
+                bool allowExtrapolation = true,
                 bool zeroStartOffset = true,
                 float minimumAttenuationValue = 0.0);
 
@@ -207,6 +210,7 @@ private:
      */
     void updateStoredVals(const uint16_t z);
 
+    bool allowExtrapolation;
     bool zeroStartOffset;
     float minimumAttenuationValue;
 };
@@ -215,9 +219,11 @@ private:
  * value of the last volume*/
 CTEvaluator::CTEvaluator(std::vector<std::string>& attenuationVolumeFiles,
                          std::vector<std::string>& tickFiles,
+                         bool allowExtrapolation,
                          bool zeroStartOffset,
                          float minimumAttenuationValue)
-    : zeroStartOffset(zeroStartOffset)
+    : allowExtrapolation(allowExtrapolation)
+    , zeroStartOffset(zeroStartOffset)
     , minimumAttenuationValue(minimumAttenuationValue)
 {
 
@@ -475,7 +481,15 @@ float CTEvaluator::valueAt(const uint16_t x, const uint16_t y, const uint16_t z,
     {
         startOffset = valueAt_intervalStart(x, y, z);
     }
-    float v = valueAt_withoutOffset(x, y, z, t);
+    double at;
+    if(allowExtrapolation)
+    {
+        at = (double)t;
+    } else
+    {
+        at = std::max(breakpointsT[0], std::min(breakpointsT[breakpointsNum - 1], (double)t));
+    }
+    float v = valueAt_withoutOffset(x, y, z, at);
     return std::max(minimumAttenuationValue, v - startOffset);
 }
 
@@ -517,8 +531,14 @@ float CTEvaluator::valueAt_withoutOffset(const uint16_t x,
     fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
     // See
     // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
-    double val;
-    double at = (double)t;
+    double val, at;
+    if(allowExtrapolation)
+    {
+        at = (double)t;
+    } else
+    {
+        at = std::max(breakpointsT[0], std::min(breakpointsT[breakpointsNum - 1], (double)t));
+    }
 
     fitter->interpolateAt(1, &at, &val);
     return (float)val;
@@ -528,8 +548,14 @@ void CTEvaluator::frameAt(const uint16_t z, const float t, float* val)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateStoredVals(z);
-    double v;
-    double at = (double)t;
+    double v, at;
+    if(allowExtrapolation)
+    {
+        at = (double)t;
+    } else
+    {
+        at = std::max(breakpointsT[0], std::min(breakpointsT[breakpointsNum - 1], (double)t));
+    }
     float startOffset = 0.0;
     for(int y = 0; y != dimy; y++)
     {
@@ -568,8 +594,8 @@ void CTEvaluator::frameTimeSeries(const uint16_t z, const uint32_t granularity, 
             }
             for(uint32_t i = 0; i != granularity; i++)
             {
-                val[y * dimx + x + i * dimx * dimy]
-                    = std::max(minimumAttenuationValue, float(storedInterpolationBuffer[i] - startOffset));
+                val[y * dimx + x + i * dimx * dimy] = std::max(
+                    minimumAttenuationValue, float(storedInterpolationBuffer[i] - startOffset));
             }
         }
     }

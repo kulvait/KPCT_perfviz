@@ -202,8 +202,6 @@ int main(int argc, char* argv[])
     uint16_t dimx = di.dimx();
     uint16_t dimy = di.dimy();
     uint16_t dimz = di.dimz();
-    std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
-        = std::make_shared<util::CTEvaluator>(a.coefficientVolumeFiles, a.tickFiles);
 
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> volumeWritter;
     double totalSweepTime = a.startOffset + (a.anglesPerSweep - 1) * a.frameTime + a.pauseSize;
@@ -250,18 +248,22 @@ int main(int argc, char* argv[])
         threadpool = new ctpl::thread_pool(a.threads);
     }
     double t = 0.0;
+    std::shared_ptr<util::Attenuation4DEvaluatorI> concentration;
     for(uint32_t sweepid = 0; sweepid != 10; sweepid++)
     {
+        threadpool->init();
         for(uint32_t angleid = 0; angleid != a.anglesPerSweep; angleid++)
         {
+            concentration = std::make_shared<util::CTEvaluator>(a.coefficientVolumeFiles,
+                                                                a.tickFiles, false, false, -1000.0);
             t = a.startOffset + sweepid * totalSweepTime + angleid * a.frameTime;
             t /= a.secLength;
             std::string msg = io::xprintf(
                 "File Volume%02d_%03d.den corresponds to the CT time %0.2f.", sweepid, angleid, t);
             LOGW << msg;
             volumeWritter = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-                io::xprintf("%s/Volume%02d_%03d.den", a.outputFolder.c_str(), sweepid, angleid), dimx,
-                dimy, dimz);
+                io::xprintf("%s/Volume%02d_%03d.den", a.outputFolder.c_str(), sweepid, angleid),
+                dimx, dimy, dimz);
             if(threadpool != nullptr)
             {
                 threadpool->push([&, concentration, t, volumeWritter](int id) {
@@ -272,6 +274,8 @@ int main(int argc, char* argv[])
                 writeVolume(0, concentration, t, volumeWritter); // For testing normal
             }
         }
+        threadpool->stop(true); // Wait for threads
+        LOGW << io::xprintf("Processed run %d.");
     }
     if(threadpool != nullptr)
     {
