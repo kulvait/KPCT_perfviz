@@ -16,3 +16,6 @@
 [submodule "submodules/matplotlib-cpp"]
 	path = submodules/matplotlib-cpp
 	url = https://github.com/lava/matplotlib-cpp
+[submodule "submodules/FTPL"]
+	path = submodules/FTPL
+	url = https://github.com/kulvait/FTPL.git
