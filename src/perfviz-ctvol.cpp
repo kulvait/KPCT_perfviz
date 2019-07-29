@@ -254,6 +254,7 @@ int main(int argc, char* argv[])
     for(uint32_t sweepid = 0; sweepid != 10; sweepid++)
     {
         threadpool->init();
+        threadpool->resize(a.threads);
         for(uint32_t angleid = 0; angleid != a.anglesPerSweep; angleid++)
         {
             concentration = std::make_shared<util::CTEvaluator>(a.coefficientVolumeFiles,
