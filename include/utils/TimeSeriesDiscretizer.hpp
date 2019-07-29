@@ -1,7 +1,7 @@
 #pragma once
 
 // External libraries
-#include "ctpl_stl.h" //Threadpool
+#include "ftpl.h" //Threadpool
 
 #include "AsyncFrame2DWritterI.hpp"
 #include "BufferedFrame2D.hpp"
@@ -148,7 +148,7 @@ public:
         {
             LOGD << io::xprintf("Function computeTTP working asynchronously on %d threads.",
                                 threads);
-            ctpl::thread_pool* threadpool = new ctpl::thread_pool(threads);
+            ftpl::thread_pool* threadpool = new ftpl::thread_pool(threads);
             for(int z = 0; z != dimz; z++)
             {
                 threadpool->push([&, this, z, granularity, w, maxindex](int id) {
@@ -290,7 +290,7 @@ public:
             LOGD << io::xprintf(
                 "Function computePerfusionParameters working asynchronously on %d threads.",
                 threads);
-            ctpl::thread_pool* threadpool = new ctpl::thread_pool(threads);
+            ftpl::thread_pool* threadpool = new ftpl::thread_pool(threads);
             for(int z = 0; z != dimz; z++)
             {
                 threadpool->push([&, this, z, convolutionInverse, granularity, cbf_w, cbv_w,

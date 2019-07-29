@@ -3,6 +3,8 @@
 // External libraries
 #include "CLI/CLI.hpp" //Command line parser
 
+#include "ftpl.h" //Threadpool
+
 //#include "FittingExecutor.hpp"
 #include "AsyncFrame2DWritterI.hpp"
 #include "DEN/DenAsyncFrame2DWritter.hpp"
@@ -238,14 +240,14 @@ int main(int argc, char* argv[])
     LOGI << io::xprintf("C-Arm data interval is [%f, %f]", startcarm, endcarm);
     LOGI << io::xprintf("CT data interval is [%f, %f]", startct, endct);
 
-    ctpl::thread_pool* threadpool = nullptr;
+    ftpl::thread_pool* threadpool = nullptr;
     if(a.threads == 0)
     {
         LOGD << io::xprintf("Computing perfusion volumes synchronously without threading.");
     } else
     {
         LOGD << io::xprintf("Computing perfusion volumes on %d threads.", a.threads);
-        threadpool = new ctpl::thread_pool(a.threads);
+        threadpool = new ftpl::thread_pool(a.threads);
     }
     double t = 0.0;
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration;
@@ -274,7 +276,10 @@ int main(int argc, char* argv[])
                 writeVolume(0, concentration, t, volumeWritter); // For testing normal
             }
         }
-        threadpool->stop(true); // Wait for threads
+        if(threadpool != nullptr)
+        {
+            threadpool->stop(true); // Wait for threads
+        }
         LOGW << io::xprintf("Processed run %d.");
     }
     if(threadpool != nullptr)

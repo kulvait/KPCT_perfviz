@@ -27,8 +27,8 @@ include_directories(${CMAKE_SOURCE_DIR}/submodules/CLI11/include)
 #Matrix class ssh://git@gitlab.stimulate.ovgu.de:2200/robert-frysch/Matrix-Template.git
 #include_directories(${CMAKE_SOURCE_DIR}/submodules/Matrix-Template)
 
-#Thread pool management lib ctpl from https://github.com/vit-vit/ctpl
-include_directories(${CMAKE_SOURCE_DIR}/submodules/ctpl)
+#Thread pool management lib ftpl from https://github.com/kulvait/FTPL
+include_directories(${CMAKE_SOURCE_DIR}/submodules/FTPL)
 find_package (Threads)#include pthreads
 
 #Intel MKL
