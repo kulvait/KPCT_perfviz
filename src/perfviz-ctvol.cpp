@@ -71,6 +71,9 @@ struct Arguments
 
     /// Number of threads, zero for no threading
     uint16_t threads = 0;
+
+    /// Angles per sweep
+    uint32_t sweepCount = 10;
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
@@ -112,6 +115,9 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "Number of extra threads that application can use. Defaults to 0 which means "
                    "sychronous execution.")
         ->check(CLI::Range(0, 65535));
+    app.add_option("--sweep-count", sweepCount,
+                   "Number of sweeps. Default 10.")
+        ->check(CLI::Range(0, 100));
     try
     {
         app.parse(argc, argv);
@@ -251,7 +257,7 @@ int main(int argc, char* argv[])
     }
     double t = 0.0;
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration;
-    for(uint32_t sweepid = 0; sweepid != 10; sweepid++)
+    for(uint32_t sweepid = 0; sweepid != a.sweepCount; sweepid++)
     {
         threadpool->init();
         threadpool->resize(a.threads);
