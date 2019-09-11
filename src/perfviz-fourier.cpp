@@ -61,13 +61,13 @@ struct Arguments
 
     // Tikhonov regularization parameter
     float lambdaRel = 0.2;
-
 #ifdef DEBUG
     /**Vizualize base functions.
      *
      *If set vizualize base functions using Python.
      */
     bool vizualize = false;
+    bool onlyaif = false;
 #endif
 };
 
@@ -112,6 +112,7 @@ int Arguments::parseArguments(int argc, char* argv[])
     app.add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
 #ifdef DEBUG
     app.add_flag("-v,--vizualize", vizualize, "Vizualize engineered basis.");
+    app.add_flag("--aif", onlyaif, "Vizualize only aif.");
 #endif
 
     try
@@ -179,7 +180,10 @@ int main(int argc, char* argv[])
     if(a.vizualize)
     {
         util::FourierSeries b(a.fittedCoefficients.size(), a.startTime, a.endTime, 1);
-        b.plotFunctions();
+        if(!a.onlyaif)
+        {
+            b.plotFunctions();
+        }
         std::vector<double> taxis;
         float* _taxis = new float[a.granularity];
         concentration->timeDiscretization(a.granularity, _taxis);
@@ -192,6 +196,10 @@ int main(int argc, char* argv[])
         plt::plot(taxis, plotme);
         plt::show();
         delete[] _taxis;
+    }
+    if(a.onlyaif)
+    {
+        return 0;
     }
 #endif
     bool truncatedInstead = false;
