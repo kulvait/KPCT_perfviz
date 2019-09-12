@@ -55,20 +55,24 @@ struct Arguments
     // Length of one second in the units of the domain
     float secLength = 1000;
 
-    // Write only ttp
-    bool onlyttp = false;
     bool allowNegativeValues = false;
 
     // Tikhonov regularization parameter
     float lambdaRel = 0.2;
-#ifdef DEBUG
+
+    // If only ttp should be computed
+    bool onlyttp = false;
+
     /**Vizualize base functions.
      *
      *If set vizualize base functions using Python.
      */
     bool vizualize = false;
     bool onlyaif = false;
-#endif
+    /**
+     * @brief File to store AIF.
+     */
+    std::string storeAIF = "";
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
@@ -110,10 +114,10 @@ int Arguments::parseArguments(int argc, char* argv[])
         ->check(CLI::ExistingFile);
     app.add_flag("--only-ttp", onlyttp, "Report TTP only.");
     app.add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
-#ifdef DEBUG
-    app.add_flag("-v,--vizualize", vizualize, "Vizualize engineered basis.");
-    app.add_flag("--aif", onlyaif, "Vizualize only aif.");
-#endif
+    app.add_flag("-v,--vizualize", vizualize, "Vizualize AIF and the basis.");
+    app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
+    app.add_flag("--only-aif", onlyaif, "Vizualize only aif.");
+    app.add_flag("--only-ttp", onlyttp, "Compute only ttp.");
 
     try
     {
@@ -176,11 +180,10 @@ int main(int argc, char* argv[])
     float* aif = new float[a.granularity];
     concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
-#ifdef DEBUG // Ploting AIF
-    if(a.vizualize)
+    if(a.vizualize || !a.storeAIF.empty())
     {
         util::FourierSeries b(a.fittedCoefficients.size(), a.startTime, a.endTime, 1);
-        if(!a.onlyaif)
+        if(a.vizualize && !a.onlyaif)
         {
             b.plotFunctions();
         }
@@ -194,14 +197,20 @@ int main(int argc, char* argv[])
             taxis.push_back(_taxis[i]);
         }
         plt::plot(taxis, plotme);
-        plt::show();
+        if(a.vizualize)
+        {
+            plt::show();
+        }
+        if(!a.storeAIF.empty())
+        {
+            plt::save(a.storeAIF);
+        }
         delete[] _taxis;
     }
     if(a.onlyaif)
     {
         return 0;
     }
-#endif
     bool truncatedInstead = false;
     //    a.lambdaRel = 0.0;
     utils::TikhonovInverse ti(a.lambdaRel, truncatedInstead);

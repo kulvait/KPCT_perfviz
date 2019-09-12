@@ -10,15 +10,12 @@
 #include "DEN/DenFrame2DReader.hpp"
 #include "Frame2DReaderI.hpp"
 #include "SVD/TikhonovInverse.hpp"
+#include "matplotlibcpp.h"
 #include "stringFormatter.h"
 #include "utils/ReconstructedSeriesEvaluator.hpp"
 #include "utils/TimeSeriesDiscretizer.hpp"
 
-#if DEBUG
-#include "matplotlibcpp.h"
-
 namespace plt = matplotlibcpp;
-#endif
 
 using namespace CTL;
 
@@ -57,14 +54,16 @@ struct Arguments
     // If only ttp should be computed
     bool onlyttp = false;
 
-#ifdef DEBUG
     /**Vizualize base functions.
      *
      *If set vizualize base functions using Python.
      */
     bool vizualize = false;
     bool onlyaif = false;
-#endif
+    /**
+     * @brief File to store AIF.
+     */
+    std::string storeAIF = "";
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
@@ -90,11 +89,10 @@ int Arguments::parseArguments(int argc, char* argv[])
     app.add_option("-c,--sec-length", secLength,
                    "Length of one second in the units of the domain. Defaults to 1000.")
         ->check(CLI::Range(0.0, 1000000.0));
-#if DEBUG
-    app.add_flag("-v,--vizualize", vizualize, "Vizualize engineered basis.");
-    app.add_flag("--aif", onlyaif, "Vizualize only aif.");
-#endif
-    app.add_flag("--ttp", onlyttp, "Compute only ttp.");
+    app.add_flag("-v,--vizualize", vizualize, "Vizualize AIF.");
+    app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
+    app.add_flag("--only-aif", onlyaif, "Vizualize only aif.");
+    app.add_flag("--only-ttp", onlyttp, "Compute only ttp.");
     app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
     app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
     app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
@@ -178,8 +176,7 @@ int main(int argc, char* argv[])
     float* aif = new float[a.granularity];
     concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
-#if DEBUG // Ploting AIF
-    if(a.vizualize)
+    if(a.vizualize || !a.storeAIF.empty())
     {
         std::vector<double> taxis;
         float* _taxis = new float[a.granularity];
@@ -190,19 +187,26 @@ int main(int argc, char* argv[])
             plotme.push_back(aif[i]);
             taxis.push_back(_taxis[i]);
         }
-        std::shared_ptr<util::ReconstructedSeriesEvaluator> concrse = std::dynamic_pointer_cast<util::ReconstructedSeriesEvaluator>(concentration);
+        std::shared_ptr<util::ReconstructedSeriesEvaluator> concrse
+            = std::dynamic_pointer_cast<util::ReconstructedSeriesEvaluator>(concentration);
         plt::plot(taxis, plotme);
         std::vector<double> taxis_scatter = concrse->nativeTimeDiscretization();
         std::vector<double> plotme_scatter = concrse->nativeValuesIn(a.ifx, a.ify, a.ifz);
         plt::plot(taxis_scatter, plotme_scatter);
-        plt::show();
+        if(a.vizualize)
+        {
+            plt::show();
+        }
+        if(!a.storeAIF.empty())
+        {
+            plt::save(a.storeAIF);
+        }
         delete[] _taxis;
     }
     if(a.onlyaif)
     {
         return 0;
     }
-#endif
     bool truncatedInstead = false;
     float lambdaRel = 0.2;
     utils::TikhonovInverse ti(lambdaRel, truncatedInstead);
