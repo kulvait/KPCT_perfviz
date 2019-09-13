@@ -112,12 +112,11 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "coeficient that corresponds to the constant.")
         ->required()
         ->check(CLI::ExistingFile);
-    app.add_flag("--only-ttp", onlyttp, "Report TTP only.");
     app.add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
     app.add_flag("-v,--vizualize", vizualize, "Vizualize AIF and the basis.");
     app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
-    app.add_flag("--only-aif", onlyaif, "Vizualize only aif.");
-    app.add_flag("--only-ttp", onlyttp, "Compute only ttp.");
+    app.add_flag("--only-aif", onlyaif, "Compute only AIF.");
+    app.add_flag("--only-ttp", onlyttp, "Compute only TTP.");
 
     try
     {
