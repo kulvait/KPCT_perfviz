@@ -54,14 +54,16 @@ struct Arguments
     // If only ttp should be computed
     bool onlyttp = false;
 
-#ifdef DEBUG
     /**Vizualize base functions.
      *
      *If set vizualize base functions using Python.
      */
     bool vizualize = false;
     bool onlyaif = false;
-#endif
+    /**
+     * @brief File to store AIF.
+     */
+    std::string storeAIF = "";
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
@@ -79,12 +81,10 @@ int Arguments::parseArguments(int argc, char* argv[])
     app.add_option("-c,--sec-length", secLength,
                    "Length of one second in the units of the domain. Defaults to 1000.")
         ->check(CLI::Range(0.0, 1000000.0));
-#if DEBUG
-    app.add_flag("-v,--vizualize", vizualize, "Vizualize aif.");
-    app.add_flag("--aif", onlyaif,
-                 "Stop program without computing perfusion parameters after visualization.");
-#endif
-    app.add_flag("--ttp", onlyttp, "Compute only ttp.");
+    app.add_flag("-v,--vizualize", vizualize, "Vizualize AIF and the basis.");
+    app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
+    app.add_flag("--only-aif", onlyaif, "Compute only AIF.");
+    app.add_flag("--only-ttp", onlyttp, "Compute only TTP.");
     app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
     app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
     app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
@@ -182,8 +182,7 @@ int main(int argc, char* argv[])
     float* aif = new float[a.granularity];
     concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
-#if DEBUG // Ploting AIF
-    if(a.vizualize)
+    if(a.vizualize || !a.storeAIF.empty())
     {
         std::vector<double> taxis;
         float* _taxis = new float[a.granularity];
@@ -195,19 +194,26 @@ int main(int argc, char* argv[])
             taxis.push_back(_taxis[i]);
         }
         plt::plot(taxis, plotme);
-        std::shared_ptr<util::CTEvaluator> conct = std::dynamic_pointer_cast<util::CTEvaluator>(concentration);
+        std::shared_ptr<util::CTEvaluator> conct
+            = std::dynamic_pointer_cast<util::CTEvaluator>(concentration);
         plt::plot(taxis, plotme);
         std::vector<double> taxis_scatter = conct->nativeTimeDiscretization(a.ifz);
         std::vector<double> plotme_scatter = conct->nativeValuesIn(a.ifx, a.ify, a.ifz);
         plt::plot(taxis_scatter, plotme_scatter);
-        plt::show();
+        if(a.vizualize)
+        {
+            plt::show();
+        }
+        if(!a.storeAIF.empty())
+        {
+            plt::save(a.storeAIF);
+        }
         delete[] _taxis;
     }
     if(a.onlyaif)
     {
         return 0;
     }
-#endif
     bool truncatedInstead = false;
     float lambdaRel = 0.2;
     utils::TikhonovInverse ti(lambdaRel, truncatedInstead);
@@ -258,7 +264,7 @@ int main(int argc, char* argv[])
     util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, intervalStart, intervalEnd,
                                     a.secLength, a.threads);
     LOGD << "TTP computation.";
-    //tsd.computeTTP(a.granularity, ttp_w, aif);//Peak of aif is minimum index in output
+    // tsd.computeTTP(a.granularity, ttp_w, aif);//Peak of aif is minimum index in output
     tsd.computeTTP(a.granularity, ttp_w, nullptr);
     if(!a.onlyttp)
     {
