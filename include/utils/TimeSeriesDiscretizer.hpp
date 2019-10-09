@@ -6,8 +6,8 @@
 #include "AsyncFrame2DWritterI.hpp"
 #include "BufferedFrame2D.hpp"
 #include "SVD/TikhonovInverse.hpp"
-#include "utils/Attenuation4DEvaluatorI.hpp"
 #include "matplotlibcpp.h"
+#include "utils/Attenuation4DEvaluatorI.hpp"
 
 namespace plt = matplotlibcpp;
 
@@ -184,9 +184,10 @@ public:
             plotme.push_back(kernel[i]);
             taxis.push_back(i);
         }
-	LOGD << io::xprintf("First kernel element is %f, last kernel element is %f.",kernel[0], kernel[granularity-1]);
+        LOGD << io::xprintf("First kernel element is %f, last kernel element is %f.", kernel[0],
+                            kernel[granularity - 1]);
         plt::plot(taxis, plotme);
-	plt::title(figtitle);
+        plt::title(figtitle);
         plt::show();
         delete[] kernel;
         delete[] values;
@@ -213,11 +214,12 @@ public:
                               std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w)
     {
         float* values = new float[dimx * dimy * granularity];
-        float* convol = new float[dimx * dimy * granularity]();
+        // float* convol = new float[dimx * dimy * granularity]();
+        float convol_i;
         float* maxval_cbf = new float[dimx * dimy];
         float* sum_cbv = new float[dimx * dimy]();
         float* div_mtt = new float[dimx * dimy];
-        std::fill(maxval_cbf, &maxval_cbf[dimx * dimy], std::numeric_limits<float>::min());
+        std::fill(maxval_cbf, &maxval_cbf[dimx * dimy], std::numeric_limits<float>::lowest());
         double dt = (intervalEnd - intervalStart) / double(granularity - 1);
         attenuationEvaluator->frameTimeSeries(z, granularity, values);
         for(int x = 0; x != dimx; x++)
@@ -226,20 +228,27 @@ public:
             {
                 for(int i = 0; i != granularity; i++)
                 {
+                    convol_i = 0.0;
                     for(int j = 0; j != granularity; j++)
                     {
-                        convol[i * dimx * dimy + y * dimx + x]
-                            += convolutionInverse[i * granularity + j]
+                        // convol[i * dimx * dimy + y * dimx + x]
+                        convol_i += convolutionInverse[i * granularity + j]
                             * values[j * dimx * dimy + y * dimx + x];
                     }
-                    if(convol[i * dimx * dimy + y * dimx + x] / dt > maxval_cbf[x + dimx * y])
+                    if(convol_i / dt > maxval_cbf[x + dimx * y])
                     {
-                        maxval_cbf[x + dimx * y] = convol[i * dimx * dimy + y * dimx + x] / dt;
+                        maxval_cbf[x + dimx * y] = convol_i / dt;
                     }
-                    sum_cbv[x + dimx * y] += convol[i * dimx * dimy + y * dimx + x];
+                    sum_cbv[x + dimx * y] += convol_i;
                 }
-                div_mtt[x + dimx * y] = sum_cbv[x + dimx * y] / maxval_cbf[x + dimx * y];
-                div_mtt[x + dimx * y] /= secLength; // Scaling to seconds
+                if(maxval_cbf[x + dimx * y] == 0.0)
+                {
+                    div_mtt[x + dimx * y] = 0.0;
+                } else
+                {
+                    div_mtt[x + dimx * y] = sum_cbv[x + dimx * y]
+                        / (maxval_cbf[x + dimx * y] * secLength); // Scaling to seconds
+                }
                 sum_cbv[x + dimx * y] *= 100; // Scaling to mL/100g
                 maxval_cbf[x + dimx * y] *= secLength;
                 maxval_cbf[x + dimx * y] *= 60;
@@ -256,7 +265,7 @@ public:
         delete[] sum_cbv;
         delete[] div_mtt;
         delete[] values;
-        delete[] convol;
+        // delete[] convol;
         LOGD << io::xprintf("Estimated perfusion parameters for frame %d.", z);
     }
 

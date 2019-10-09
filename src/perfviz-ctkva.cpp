@@ -29,7 +29,7 @@ struct Arguments
     int parseArguments(int argc, char* argv[]);
 
     /// Folder to which output data after the linear regression.
-    std::string outputFolder;
+    std::string outputFile;
 
     /// Static reconstructions in a DEN format to use for linear regression.
     std::vector<std::string> coefficientVolumeFiles;
@@ -43,23 +43,16 @@ struct Arguments
     /// Coordinates of arthery input function
     uint16_t ifx, ify, ifz;
 
-    /// Granularity of the time is number of time points analyzed by i.e. convolution
-    uint32_t granularity = 100;
-
     // Length of one second in the units of the domain
     float secLength = 1.0;
 
     uint32_t baseSize;
-
-    // If only ttp should be computed
-    bool onlyttp = false;
 
     /**Vizualize base functions.
      *
      *If set vizualize base functions using Python.
      */
     bool vizualize = false;
-    bool onlyaif = false;
     /**
      * @brief File to store AIF.
      */
@@ -68,31 +61,15 @@ struct Arguments
 
 int Arguments::parseArguments(int argc, char* argv[])
 {
-    CLI::App app{ "Visualization of perfusion parameters CT based on fiting of splines to a static "
-                  "reconstructions of CT data." };
+    CLI::App app{ "Fast computation of parameter to locate AIF." };
     app.add_option("-j,--threads", threads,
                    "Number of extra threads that application can use. Defaults to 0 which means "
                    "sychronous execution.")
         ->check(CLI::Range(0, 65535));
-    app.add_option("-g,--granularity", granularity,
-                   "Granularity of the time is number of time points to which time interval is "
-                   "discretized. Defaults to 100.")
-        ->check(CLI::Range(1, 1000000));
-    app.add_option("-c,--sec-length", secLength,
-                   "Length of one second in the units of the domain. Defaults to 1000.")
-        ->check(CLI::Range(0.0, 1000000.0));
     app.add_flag("-v,--vizualize", vizualize, "Vizualize AIF and the basis.");
     app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
-    app.add_flag("--only-aif", onlyaif, "Compute only AIF.");
-    app.add_flag("--only-ttp", onlyttp, "Compute only TTP.");
-    app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
-    app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
-    app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
 
-    app.add_option("output_folder", outputFolder,
-                   "Folder to which output data of perfusion coefficients.")
-        ->required()
-        ->check(CLI::ExistingDirectory);
+    app.add_option("output_file", outputFile, "File KVA coefs.")->required();
     app.add_option("static_reconstructions", coefficientVolumeFiles,
                    "Coeficients of the basis functions fited by the algorithm. Orderred in the "
                    "same order as the basis is sampled in a DEN file.")
@@ -102,12 +79,6 @@ int Arguments::parseArguments(int argc, char* argv[])
     try
     {
         app.parse(argc, argv);
-        if(coefficientVolumeFiles.size() != 30 && coefficientVolumeFiles.size() != 15)
-        {
-            std::string err = io::xprintf("Number of sweeps is %d which is unusual number.",
-                                          coefficientVolumeFiles.size());
-            LOGW << err;
-        }
         if(coefficientVolumeFiles.size() < 2)
         {
             std::string err
@@ -115,17 +86,12 @@ int Arguments::parseArguments(int argc, char* argv[])
             LOGE << err;
             io::throwerr(err);
         }
-        if(secLength == 0.0)
-        {
-            io::throwerr("Length of the second is not positive!");
-        }
         for(std::string f : coefficientVolumeFiles)
         {
             std::string tickFile = f.substr(0, f.find_last_of(".")) + ".tick";
             if(!io::fileExists(tickFile))
             {
-                std::string err
-                    = io::xprintf("Small number of input files %d.", coefficientVolumeFiles.size());
+                std::string err = io::xprintf("File not exists.");
                 LOGE << err;
                 throw new std::runtime_error(err);
 
@@ -177,18 +143,21 @@ int main(int argc, char* argv[])
     uint16_t dimz = di.dimz();
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
         = std::make_shared<util::CTEvaluator>(a.coefficientVolumeFiles, a.tickFiles);
+    uint32_t n = a.coefficientVolumeFiles.size();
     // Vizualization
-    float* convolutionMatrix = new float[a.granularity * a.granularity];
-    float* aif = new float[a.granularity];
-    concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
-    utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
+    float* convolutionMatrix = new float[n * n];
+    float* aif = new float[n]();
+    aif[0] = 0.5;
+    aif[1] = 1.0;
+    aif[2] = 0.5;
+    utils::TikhonovInverse::precomputeConvolutionMatrix(n, aif, convolutionMatrix);
     if(a.vizualize || !a.storeAIF.empty())
     {
         std::vector<double> taxis;
-        float* _taxis = new float[a.granularity];
-        concentration->timeDiscretization(a.granularity, _taxis);
+        float* _taxis = new float[n];
+        concentration->timeDiscretization(n, _taxis);
         std::vector<double> plotme;
-        for(uint32_t i = 0; i != a.granularity; i++)
+        for(uint32_t i = 0; i != n; i++)
         {
             plotme.push_back(aif[i]);
             taxis.push_back(_taxis[i]);
@@ -210,29 +179,20 @@ int main(int argc, char* argv[])
         }
         delete[] _taxis;
     }
-    if(a.onlyaif)
-    {
-        return 0;
-    }
     bool truncatedInstead = false;
-    float lambdaRel = 0.2;
-    lambdaRel = 0.075;
+    float lambdaRel = 0.075;
     utils::TikhonovInverse ti(lambdaRel, truncatedInstead);
-    ti.computePseudoinverse(convolutionMatrix, a.granularity);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> ttp_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/TTP.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/CBF.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/CBV.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/MTT.den", a.outputFolder.c_str()), dimx, dimy, dimz);
-    // Computation of the start and end of the interval
-
+    ti.computePseudoinverse(convolutionMatrix, n);
+    std::shared_ptr<io::AsyncFrame2DWritterI<float>> kva
+        = std::make_shared<io::DenAsyncFrame2DWritter<float>>(a.outputFile, dimx, dimy, dimz);
+/*
+    std::shared_ptr<io::AsyncFrame2DWritterI<float>> kva
+        = std::make_shared<io::DenAsyncFrame2DWritter<float>>("/tmp/KVA.den", dimx, dimy, dimz);
+    std::shared_ptr<io::AsyncFrame2DWritterI<float>> kvb
+        = std::make_shared<io::DenAsyncFrame2DWritter<float>>("/tmp/KVB.den", dimx, dimy, dimz);
+    std::shared_ptr<io::AsyncFrame2DWritterI<float>> kvc
+        = std::make_shared<io::DenAsyncFrame2DWritter<float>>("/tmp/KVC.den", dimx, dimy, dimz);
+*/
     std::shared_ptr<io::Frame2DReaderI<float>> startData
         = std::make_shared<io::DenFrame2DReader<float>>(a.tickFiles[0]);
     std::shared_ptr<io::Frame2DReaderI<float>> endData
@@ -264,14 +224,42 @@ int main(int argc, char* argv[])
                         intervalStart, intervalEnd, a.secLength);
     util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, intervalStart, intervalEnd,
                                     a.secLength, a.threads);
-    LOGD << "TTP computation.";
-    // tsd.computeTTP(a.granularity, ttp_w, aif);//Peak of aif is minimum index in output
-    tsd.computeTTP(a.granularity, ttp_w, nullptr);
-    if(!a.onlyttp)
+    LOGD << "KVA computation.";
+    float* values = new float[dimx * dimy * n];
+    // float* convol = new float[dimx * dimy * granularity]();
+    float convol_i;
+    for(int z = 0; z != dimz; z++)
     {
-        LOGD << "CBV, CBF and MTT computation.";
-        tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
+        concentration->frameTimeSeries(z, n, values);
+        io::BufferedFrame2D<float> kvafr(std::numeric_limits<float>::lowest(), dimx, dimy);
+        io::BufferedFrame2D<float> kvbfr(float(0), dimx, dimy);
+        io::BufferedFrame2D<float> kvcfr(float(0), dimx, dimy);
+        for(int x = 0; x != dimx; x++)
+        {
+            for(int y = 0; y != dimy; y++)
+            {
+                for(uint32_t i = 0; i != n; i++)
+                {
+                    convol_i = 0.0;
+                    for(uint32_t j = 0; j != n; j++)
+                    {
+                        convol_i += convolutionMatrix[i * n + j]
+                            * values[j * dimx * dimy + y * dimx + x];
+                    }
+                    if(convol_i * float(n - i - 1) / float(n - 1) > kvafr.get(x, y))
+                    {
+                        kvafr.set(convol_i * float(n - i - 1) / float(n - 1), x, y);
+                    }
+                    kvbfr.set(convol_i + kvbfr.get(x, y), x, y);
+                    kvcfr.set(values[i * dimx * dimy + y * dimx + x] + kvcfr.get(x, y), x, y);
+                }
+            }
+        }
+        kva->writeFrame(kvafr, z);
+    //    kvb->writeFrame(kvbfr, z);
+    //    kvc->writeFrame(kvcfr, z);
     }
+    delete[] values;
     delete[] convolutionMatrix;
     delete[] aif;
     LOGI << io::xprintf("END %s", argv[0]);
