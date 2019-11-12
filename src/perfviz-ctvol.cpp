@@ -209,12 +209,13 @@ int Arguments::parseArguments(int argc, char* argv[])
         }
         if(intervalCenterOffset)
         {
-            double halfcarm = (totalSweepTime * (sweepCount - 1) + (anglesPerSweep - 1) * frameTime) / 2;
+            double halfcarm
+                = (totalSweepTime * (sweepCount - 1) + (anglesPerSweep - 1) * frameTime) / 2;
             double halfct = (endct - startct) * secLength / 2;
             startOffset = halfct - halfcarm;
         }
         startcarm = (startct * secLength + startOffset) / secLength;
-        endcarm = (startct * secLength + startOffset + totalSweepTime * 9
+        endcarm = (startct * secLength + startOffset + totalSweepTime * (sweepCount - 1)
                    + (anglesPerSweep - 1) * frameTime)
             / secLength;
         // startct is the latest time from the first stack
