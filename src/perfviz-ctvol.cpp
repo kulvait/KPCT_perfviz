@@ -200,10 +200,17 @@ int Arguments::parseArguments(int argc, char* argv[])
                 endct = end;
             }
         }
+        if(endct - startct <= 0.0)
+        {
+            LOGE << io::xprintf(
+                "CT aquisition start of the interval %f is after or precisely at its end %f",
+                startct, endct);
+            return -1;
+        }
         if(intervalCenterOffset)
         {
-            double halfcarm = totalSweepTime * 9 + (anglesPerSweep - 1) * frameTime;
-            double halfct = endct - startct;
+            double halfcarm = (totalSweepTime * 9 + (anglesPerSweep - 1) * frameTime) / 2;
+            double halfct = (endct - startct) / 2;
             startOffset = halfct - halfcarm;
         }
         startcarm = (startct * secLength + startOffset) / secLength;
@@ -299,7 +306,8 @@ int main(int argc, char* argv[])
             t /= a.secLength;
             if(t < a.startct || t > a.endct)
             {
-                LOGW << io::xprintf("Time %f is out of the range [%f, %f]", t, a.startct, a.endct);
+                LOGW << io::xprintf("Time %f is out of the range [%f, %f], sweep=%02d, angle=%03d.",
+                                    t, a.startct, a.endct, sweepid, angleid);
             }
             if(angleid == 0)
             {
