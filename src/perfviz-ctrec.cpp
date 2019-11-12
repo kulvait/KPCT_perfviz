@@ -60,6 +60,7 @@ struct Arguments
      */
     bool vizualize = false;
     bool onlyaif = false;
+    float water_value = -0.027;
     /**
      * @brief File to store AIF.
      */
@@ -85,6 +86,8 @@ int Arguments::parseArguments(int argc, char* argv[])
     app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
     app.add_flag("--only-aif", onlyaif, "Compute only AIF.");
     app.add_flag("--only-ttp", onlyttp, "Compute only TTP.");
+    app.add_option("--water-value", water_value,
+                   "If the AIF vizualization should be in HU, use this water_value.");
     app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
     app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
     app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
@@ -190,16 +193,33 @@ int main(int argc, char* argv[])
         std::vector<double> plotme;
         for(uint32_t i = 0; i != a.granularity; i++)
         {
-            plotme.push_back(aif[i]);
+            if(a.water_value > 0)
+            {
+                plotme.push_back(aif[i] * 1000 / a.water_value);
+            } else
+            {
+                plotme.push_back(aif[i]);
+            }
             taxis.push_back(_taxis[i]);
         }
-        plt::plot(taxis, plotme);
+        plt::title(io::xprintf("AIF x=%d, y=%d, z=%d", a.ifx, a.ify, a.ifz));
+        plt::ylabel("Attenuation");
+        plt::xlabel("Time [s]");
+        plt::named_plot("Fit", taxis, plotme);
         std::shared_ptr<util::CTEvaluator> conct
             = std::dynamic_pointer_cast<util::CTEvaluator>(concentration);
         plt::plot(taxis, plotme);
         std::vector<double> taxis_scatter = conct->nativeTimeDiscretization(a.ifz);
         std::vector<double> plotme_scatter = conct->nativeValuesIn(a.ifx, a.ify, a.ifz);
-        plt::plot(taxis_scatter, plotme_scatter);
+        if(a.water_value > 0)
+        {
+            for(uint32_t i = 0; i != plotme_scatter.size(); i++)
+            {
+                plotme_scatter[i] = plotme_scatter[i] * 1000 / a.water_value;
+            }
+        }
+        plt::named_plot("Original", taxis_scatter, plotme_scatter);
+        // plt::legend();
         if(a.vizualize)
         {
             plt::show();
@@ -216,7 +236,7 @@ int main(int argc, char* argv[])
     }
     bool truncatedInstead = false;
     float lambdaRel = 0.2;
-    lambdaRel = 0.075;
+    // lambdaRel = 0.075;
     utils::TikhonovInverse ti(lambdaRel, truncatedInstead);
     ti.computePseudoinverse(convolutionMatrix, a.granularity);
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> ttp_w

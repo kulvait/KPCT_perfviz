@@ -208,7 +208,7 @@ int main(int argc, char* argv[])
         return 0;
     }
     bool truncatedInstead = false;
-    float lambdaRel = 0.2;
+    float lambdaRel = 0.075;
     utils::TikhonovInverse ti(lambdaRel, truncatedInstead);
     ti.computePseudoinverse(convolutionMatrix, a.granularity);
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> ttp_w
