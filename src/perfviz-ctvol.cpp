@@ -61,9 +61,9 @@ struct Arguments
     /// Start of C-Arm acquisition [ms].
     float startOffset = 0.0;
 
-    // Should the start of the C-Arm acquisition be matched with the latest time of the first
-    // CT volume
-    bool startOffsetCt = false;
+    // C-Arm CT and CT intervals should be ofsetted in a way that the half of the interval matches
+    // for both
+    bool intervalCenterOffset = false;
 
     /** Time conversion constant
      *
@@ -78,6 +78,10 @@ struct Arguments
 
     /// Angles per sweep
     uint32_t sweepCount = 10;
+
+    uint16_t dimx, dimy, dimz;
+
+    double totalSweepTime, startct, endct, startcarm, endcarm;
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
@@ -105,11 +109,20 @@ int Arguments::parseArguments(int argc, char* argv[])
     app.add_option("-a,--angles-per-sweep", anglesPerSweep,
                    "Number of frames acquired per one sweep, defaults to 248")
         ->check(CLI::Range(1, 10000));
-    app.add_option("-i,--start-offset", startOffset,
-                   "The timings for C-Arm and CT aquisition might differ. This offset [ms] "
-                   "controls how the acquisition of the C-Arm data is shifted relative to the "
-                   "latest time of the first CT stack volume [defaults to 0.0].")
-        ->check(CLI::Range(-1000000.0, 1000000.0));
+    CLI::Option* cli_startOffset
+        = app.add_option(
+                 "-i,--start-offset", startOffset,
+                 "The timings for C-Arm and CT aquisition might differ. This offset [ms] "
+                 "controls how the acquisition of the C-Arm data is shifted relative to the "
+                 "latest time of the first CT stack volume [defaults to 0.0].")
+              ->check(CLI::Range(-1000000.0, 1000000.0));
+    CLI::Option* cli_centralTime
+        = app.add_flag("--interval-center-offset", intervalCenterOffset,
+                       "The timings for C-Arm and CT aquisition might differ. When this setting is "
+                       "enabled, then the middle of the CT interval will match the middle of the "
+                       "C-Arm CT interval [defaults to false].");
+    cli_centralTime->excludes(cli_startOffset);
+    cli_startOffset->excludes(cli_centralTime);
     app.add_option("-c,--sec-length", secLength,
                    "Length of one second in the units of the domain. Defaults to 1000.")
         ->check(CLI::Range(0.0, 1000000.0));
@@ -135,8 +148,19 @@ int Arguments::parseArguments(int argc, char* argv[])
             LOGE << err;
             io::throwerr(err);
         }
+        io::DenFileInfo di(coefficientVolumeFiles[0]);
+        dimx = di.dimx();
+        dimy = di.dimy();
+        dimz = di.dimz();
         for(std::string f : coefficientVolumeFiles)
         {
+            io::DenFileInfo df(f);
+            if(dimx != df.dimx() || dimy != df.dimy() || dimz != df.dimy())
+            {
+                std::string err = io::xprintf("Dimension check for the file %s fails.", f.c_str());
+                LOGE << err;
+                throw new std::runtime_error(err);
+            }
             std::string tickFile = f.substr(0, f.find_last_of(".")) + ".tick";
             if(!io::fileExists(tickFile))
             {
@@ -149,6 +173,47 @@ int Arguments::parseArguments(int argc, char* argv[])
                 tickFiles.push_back(tickFile);
             }
         }
+        totalSweepTime = (anglesPerSweep - 1) * frameTime + pauseSize;
+        std::shared_ptr<io::Frame2DReaderI<float>> startData
+            = std::make_shared<io::DenFrame2DReader<float>>(tickFiles[0]);
+        std::shared_ptr<io::Frame2DReaderI<float>> endData
+            = std::make_shared<io::DenFrame2DReader<float>>(tickFiles[tickFiles.size() - 1]);
+        std::shared_ptr<io::Frame2DI<float>> fs, fe;
+        fs = startData->readFrame(0);
+        fe = endData->readFrame(0);
+        // Fifth element of frame is time
+        startct = fs->get(4, 0);
+        endct = fe->get(4, 0);
+        float start, end;
+        for(std::size_t z = 0; z != dimz; z++)
+        {
+            fs = startData->readFrame(z);
+            fe = endData->readFrame(z);
+            start = fs->get(4, 0);
+            end = fe->get(4, 0);
+            if(start > startct)
+            {
+                startct = start;
+            }
+            if(end < endct)
+            {
+                endct = end;
+            }
+        }
+        if(intervalCenterOffset)
+        {
+            double halfcarm = totalSweepTime * 9 + (anglesPerSweep - 1) * frameTime;
+            double halfct = endct - startct;
+            startOffset = halfct - halfcarm;
+        }
+        startcarm = (startct * secLength + startOffset) / secLength;
+        endcarm = (startct * secLength + startOffset + totalSweepTime * 9
+                   + (anglesPerSweep - 1) * frameTime)
+            / secLength;
+        // startct is the latest time from the first stack
+        // endct is the earliest time from the last stack
+        LOGI << io::xprintf("C-Arm data interval is [%f, %f]", startcarm, endcarm);
+        LOGI << io::xprintf("CT data interval is [%f, %f]", startct, endct);
 
     } catch(const CLI::ParseError& e)
     {
@@ -207,49 +272,8 @@ int main(int argc, char* argv[])
             return -1; // Exited somehow wrong
         }
     }
-    io::DenFileInfo di(a.coefficientVolumeFiles[0]);
-    uint16_t dimx = di.dimx();
-    uint16_t dimy = di.dimy();
-    uint16_t dimz = di.dimz();
 
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> volumeWritter;
-    double totalSweepTime = (a.anglesPerSweep - 1) * a.frameTime + a.pauseSize;
-    double startct, endct;
-    std::shared_ptr<io::Frame2DReaderI<float>> startData
-        = std::make_shared<io::DenFrame2DReader<float>>(a.tickFiles[0]);
-    std::shared_ptr<io::Frame2DReaderI<float>> endData
-        = std::make_shared<io::DenFrame2DReader<float>>(a.tickFiles[a.tickFiles.size() - 1]);
-    std::shared_ptr<io::Frame2DI<float>> fs, fe;
-    fs = startData->readFrame(0);
-    fe = endData->readFrame(0);
-    // Fifth element of frame is time
-    startct = fs->get(4, 0);
-    endct = fe->get(4, 0);
-    float start, end;
-    for(std::size_t z = 0; z != dimz; z++)
-    {
-        fs = startData->readFrame(z);
-        fe = endData->readFrame(z);
-        start = fs->get(4, 0);
-        end = fe->get(4, 0);
-        if(start > startct)
-        {
-            startct = start;
-        }
-        if(end < endct)
-        {
-            endct = end;
-        }
-    }
-    double startcarm, endcarm;
-    startcarm = (startct * a.secLength + a.startOffset) / a.secLength;
-    endcarm = (startct * a.secLength + a.startOffset + totalSweepTime * 9
-               + (a.anglesPerSweep - 1) * a.frameTime)
-        / a.secLength;
-    // startct is the latest time from the first stack
-    // endct is the earliest time from the last stack
-    LOGI << io::xprintf("C-Arm data interval is [%f, %f]", startcarm, endcarm);
-    LOGI << io::xprintf("CT data interval is [%f, %f]", startct, endct);
 
     ftpl::thread_pool* threadpool = nullptr;
     if(a.threads == 0)
@@ -270,16 +294,21 @@ int main(int argc, char* argv[])
         {
             concentration = std::make_shared<util::CTEvaluator>(a.coefficientVolumeFiles,
                                                                 a.tickFiles, false, false, 0.0);
-            t = startct * a.secLength + a.startOffset + sweepid * totalSweepTime
+            t = a.startct * a.secLength + a.startOffset + sweepid * a.totalSweepTime
                 + angleid * a.frameTime;
             t /= a.secLength;
-            if(t < startct || t > endct)
+            if(t < a.startct || t > a.endct)
             {
-                LOGW << io::xprintf("Time %f is out of the range [%f, %f]", t, startct, endct);
+                LOGW << io::xprintf("Time %f is out of the range [%f, %f]", t, a.startct, a.endct);
+            }
+            if(angleid == 0)
+            {
+                LOGD << io::xprintf("Creating Volume%02d_%03d.den at time %0.2f", sweepid, angleid,
+                                    t);
             }
             volumeWritter = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
                 io::xprintf("%s/Volume%02d_%03d.den", a.outputFolder.c_str(), sweepid, angleid),
-                dimx, dimy, dimz);
+                a.dimx, a.dimy, a.dimz);
             if(threadpool != nullptr)
             {
                 threadpool->push([&, concentration, t, volumeWritter](int id) {
@@ -294,7 +323,6 @@ int main(int argc, char* argv[])
         {
             threadpool->stop(true); // Wait for threads
         }
-        LOGW << io::xprintf("Processed run %d.");
     }
     if(threadpool != nullptr)
     {
