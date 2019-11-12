@@ -61,6 +61,10 @@ struct Arguments
     /// Start of C-Arm acquisition [ms].
     float startOffset = 0.0;
 
+    // Should the start of the C-Arm acquisition be matched with the latest time of the first
+    // CT volume
+    bool startOffsetCt = false;
+
     /** Time conversion constant
      *
      *Length of the second for the unit of C-Arm CT acquisition that will be converted into time
@@ -102,11 +106,9 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "Number of frames acquired per one sweep, defaults to 248")
         ->check(CLI::Range(1, 10000));
     app.add_option("-i,--start-offset", startOffset,
-                   "From frame_time and pause_size is estimated the support interval of base "
-                   "functions. First few milisecons might however be used to produce mask image "
-                   "and therefore could be excluded from the time development. This parameter "
-                   "controls the size of the time offset [ms] that should be identified with 0.0 "
-                   "that is start of the support of the basis functions [defaults to 0.0].")
+                   "The timings for C-Arm and CT aquisition might differ. This offset [ms] "
+                   "controls how the acquisition of the C-Arm data is shifted relative to the "
+                   "latest time of the first CT stack volume [defaults to 0.0].")
         ->check(CLI::Range(-1000000.0, 1000000.0));
     app.add_option("-c,--sec-length", secLength,
                    "Length of one second in the units of the domain. Defaults to 1000.")
@@ -115,8 +117,7 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "Number of extra threads that application can use. Defaults to 0 which means "
                    "sychronous execution.")
         ->check(CLI::Range(0, 65535));
-    app.add_option("--sweep-count", sweepCount,
-                   "Number of sweeps. Default 10.")
+    app.add_option("--sweep-count", sweepCount, "Number of sweeps. Default 10.")
         ->check(CLI::Range(0, 100));
     try
     {
@@ -212,10 +213,7 @@ int main(int argc, char* argv[])
     uint16_t dimz = di.dimz();
 
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> volumeWritter;
-    double totalSweepTime = a.startOffset + (a.anglesPerSweep - 1) * a.frameTime + a.pauseSize;
-    double startcarm, endcarm;
-    startcarm = a.startOffset / a.secLength;
-    endcarm = totalSweepTime * 9 + (a.anglesPerSweep - 1) * a.frameTime;
+    double totalSweepTime = (a.anglesPerSweep - 1) * a.frameTime + a.pauseSize;
     double startct, endct;
     std::shared_ptr<io::Frame2DReaderI<float>> startData
         = std::make_shared<io::DenFrame2DReader<float>>(a.tickFiles[0]);
@@ -243,6 +241,13 @@ int main(int argc, char* argv[])
             endct = end;
         }
     }
+    double startcarm, endcarm;
+    startcarm = (startct * a.secLength + a.startOffset) / a.secLength;
+    endcarm = (startct * a.secLength + a.startOffset + totalSweepTime * 9
+               + (a.anglesPerSweep - 1) * a.frameTime)
+        / a.secLength;
+    // startct is the latest time from the first stack
+    // endct is the earliest time from the last stack
     LOGI << io::xprintf("C-Arm data interval is [%f, %f]", startcarm, endcarm);
     LOGI << io::xprintf("CT data interval is [%f, %f]", startct, endct);
 
@@ -264,12 +269,14 @@ int main(int argc, char* argv[])
         for(uint32_t angleid = 0; angleid != a.anglesPerSweep; angleid++)
         {
             concentration = std::make_shared<util::CTEvaluator>(a.coefficientVolumeFiles,
-                                                                a.tickFiles, false, false, -1000.0);
-            t = a.startOffset + sweepid * totalSweepTime + angleid * a.frameTime;
+                                                                a.tickFiles, false, false, 0.0);
+            t = startct * a.secLength + a.startOffset + sweepid * totalSweepTime
+                + angleid * a.frameTime;
             t /= a.secLength;
-            std::string msg = io::xprintf(
-                "File Volume%02d_%03d.den corresponds to the CT time %0.2f.", sweepid, angleid, t);
-            LOGW << msg;
+            if(t < startct || t > endct)
+            {
+                LOGW << io::xprintf("Time %f is out of the range [%f, %f]", t, startct, endct);
+            }
             volumeWritter = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
                 io::xprintf("%s/Volume%02d_%03d.den", a.outputFolder.c_str(), sweepid, angleid),
                 dimx, dimy, dimz);
