@@ -155,7 +155,7 @@ int Arguments::parseArguments(int argc, char* argv[])
         for(std::string f : coefficientVolumeFiles)
         {
             io::DenFileInfo df(f);
-            if(dimx != df.dimx() || dimy != df.dimy() || dimz != df.dimy())
+            if(dimx != df.dimx() || dimy != df.dimy() || dimz != df.dimz())
             {
                 std::string err = io::xprintf("Dimension check for the file %s fails.", f.c_str());
                 LOGE << err;
