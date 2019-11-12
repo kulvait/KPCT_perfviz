@@ -209,7 +209,7 @@ int Arguments::parseArguments(int argc, char* argv[])
         }
         if(intervalCenterOffset)
         {
-            double halfcarm = (totalSweepTime * 9 + (anglesPerSweep - 1) * frameTime) / 2;
+            double halfcarm = (totalSweepTime * (sweepCount - 1) + (anglesPerSweep - 1) * frameTime) / 2;
             double halfct = (endct - startct) * secLength / 2;
             startOffset = halfct - halfcarm;
         }
