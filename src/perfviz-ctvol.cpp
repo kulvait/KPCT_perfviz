@@ -296,12 +296,15 @@ int main(int argc, char* argv[])
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration;
     for(uint32_t sweepid = 0; sweepid != a.sweepCount; sweepid++)
     {
-        threadpool->init();
-        threadpool->resize(a.threads);
+	if(threadpool != nullptr)
+	{
+        	threadpool->init();
+        	threadpool->resize(a.threads);
+	}
         for(uint32_t angleid = 0; angleid != a.anglesPerSweep; angleid++)
         {
             concentration = std::make_shared<util::CTEvaluator>(a.coefficientVolumeFiles,
-                                                                a.tickFiles, false, false, 0.0);
+                                                                a.tickFiles, false, false, -1024.0);
             t = a.startct * a.secLength + a.startOffset + sweepid * a.totalSweepTime
                 + angleid * a.frameTime;
             t /= a.secLength;

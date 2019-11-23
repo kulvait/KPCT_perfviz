@@ -151,7 +151,6 @@ private:
     uint16_t breakpointsNum;
     float sweepTime;
     float sweepOffset;
-    float intervalStart, intervalEnd;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> attenuationVolumes;
     uint16_t dimx, dimy, dimz;
     std::shared_ptr<math::SplineFitter> fitter;
@@ -187,7 +186,9 @@ private:
 
 ReconstructedSeriesEvaluator::ReconstructedSeriesEvaluator(
     std::vector<std::string>& attenuationVolumeFiles, float sweepTime, float sweepOffset)
-    : sweepTime(sweepTime)
+    : Attenuation4DEvaluatorI(sweepOffset,
+                              sweepOffset + (attenuationVolumeFiles.size() - 1) * sweepTime)
+    , sweepTime(sweepTime)
     , sweepOffset(sweepOffset)
 {
 
@@ -198,8 +199,6 @@ ReconstructedSeriesEvaluator::ReconstructedSeriesEvaluator(
             attenuationVolumeFiles.size());
     }
     breakpointsNum = attenuationVolumeFiles.size();
-    intervalStart = sweepOffset;
-    intervalEnd = sweepOffset + (breakpointsNum - 1) * sweepTime;
     breakpointsT = new double[breakpointsNum];
     timeDiscretizationDouble(breakpointsNum, breakpointsT);
     breakpointsY = new double[breakpointsNum];

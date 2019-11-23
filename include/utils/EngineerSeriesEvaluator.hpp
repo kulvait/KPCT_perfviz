@@ -126,8 +126,6 @@ private:
 
     uint32_t degree;
     uint16_t samplingPointsCount;
-    float intervalStart;
-    float intervalEnd;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefficientVolumes;
     uint16_t dimx, dimy, dimz;
     std::shared_ptr<util::VectorFunctionI> basisEvaluator;
@@ -158,8 +156,7 @@ EngineerSeriesEvaluator::EngineerSeriesEvaluator(std::string sampledBasisFunctio
                                                  std::vector<std::string>& coefficientVolumeFiles,
                                                  float intervalStart,
                                                  float intervalEnd)
-    : intervalStart(intervalStart)
-    , intervalEnd(intervalEnd)
+    : Attenuation4DEvaluatorI(intervalStart, intervalEnd)
 {
     io::DenFileInfo bfi(sampledBasisFunctions);
     samplingPointsCount = bfi.dimx();

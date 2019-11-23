@@ -170,6 +170,7 @@ int main(int argc, char* argv[])
     dimx = di.dimx();
     dimy = di.dimy();
     dimz = di.dimz();
+    LOGI << io::xprintf("Start time is %f and end time is %f", a.startTime, a.endTime);
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
         = std::make_shared<util::FourierSeriesEvaluator>(a.fittedCoefficients.size(),
                                                          a.fittedCoefficients, a.startTime,

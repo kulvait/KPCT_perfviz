@@ -5,6 +5,20 @@ namespace CTL::util {
 class Attenuation4DEvaluatorI
 {
 public:
+    Attenuation4DEvaluatorI(float intervalStart, float intervalEnd)
+        : intervalStart(intervalStart)
+        , intervalEnd(intervalEnd)
+    {
+        if(!(intervalStart < intervalEnd))
+        {
+            std::string msg = io::xprintf(
+                "Start of interval %f needs to be strictly before its end %f but its not!",
+                intervalStart, intervalEnd);
+            LOGE << msg;
+            throw std::runtime_error(msg);
+        }
+    }
+
     /**Function to obtain time discretization.
      *
      *This function evaluates the time instants in which other functions of the implementing class
@@ -63,5 +77,9 @@ public:
      *granularity*dimx*dimy.
      */
     virtual void frameTimeSeries(const uint16_t vz, const uint32_t granularity, float* val) = 0;
+
+protected:
+    float intervalStart;
+    float intervalEnd;
 };
 } // namespace CTL::util

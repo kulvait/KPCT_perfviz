@@ -172,7 +172,6 @@ private:
     uint16_t breakpointsNum;
     float sweepTime;
     float sweepOffset;
-    float intervalStart, intervalEnd;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> attenuationVolumes;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> tickData;
     uint16_t dimx, dimy, dimz;
@@ -222,7 +221,7 @@ CTEvaluator::CTEvaluator(std::vector<std::string>& attenuationVolumeFiles,
                          bool allowExtrapolation,
                          bool zeroStartOffset,
                          float minimumAttenuationValue)
-    : allowExtrapolation(allowExtrapolation)
+    :Attenuation4DEvaluatorI(0.0,1.0), allowExtrapolation(allowExtrapolation)
     , zeroStartOffset(zeroStartOffset)
     , minimumAttenuationValue(minimumAttenuationValue)
 {
@@ -286,7 +285,7 @@ CTEvaluator::CTEvaluator(std::vector<std::string>& attenuationVolumeFiles,
             "Start of interval %f needs to be strictly before its end %f but its not!",
             intervalStart, intervalEnd);
         LOGE << msg;
-        throw new std::runtime_error(msg);
+        throw std::runtime_error(msg);
     }
     for(std::shared_ptr<io::Frame2DReaderI<float>>& f : attenuationVolumes)
     {

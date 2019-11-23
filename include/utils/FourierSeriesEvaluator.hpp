@@ -127,8 +127,6 @@ private:
     void frameAt_intervalStart(const uint16_t z, float* val);
 
     uint32_t degree;
-    float intervalStart;
-    float intervalEnd;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefficientVolumes;
     uint16_t dimx, dimy, dimz;
     std::shared_ptr<util::VectorFunctionI> fourierEvaluator;
@@ -161,9 +159,8 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(uint32_t degree,
                                                float intervalStart,
                                                float intervalEnd,
                                                bool negativeAsZero)
-    : degree(degree)
-    , intervalStart(intervalStart)
-    , intervalEnd(intervalEnd)
+    : Attenuation4DEvaluatorI(intervalStart, intervalEnd)
+    , degree(degree)
     , negativeAsZero(negativeAsZero)
 {
     if(coefficientVolumeFiles.size() != degree)
@@ -178,7 +175,7 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(uint32_t degree,
                                       "menas degree >= 2, but degree =%d.",
                                       degree);
         LOGE << ERR;
-        io::throwerr(ERR);
+        throw std::runtime_error(ERR);
     }
     std::shared_ptr<io::Frame2DReaderI<float>> pr;
     for(std::size_t i = 1; i < degree; i++)
@@ -195,7 +192,10 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(uint32_t degree,
     {
         if(f->dimx() != dimx || f->dimy() != dimy || f->dimz() != dimz)
         {
-            io::throwerr("There are incompatible coefficients!");
+
+            std::string ERR = "There are incompatible coefficients!";
+            LOGE << ERR;
+            throw std::runtime_error(ERR);
         }
     }
     fourierEvaluator = std::make_shared<util::FourierSeries>(degree, intervalStart, intervalEnd, 1);

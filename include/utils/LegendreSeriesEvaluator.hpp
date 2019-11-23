@@ -125,8 +125,6 @@ private:
     void frameAt_intervalStart(const uint16_t z, float* val);
 
     uint32_t degree;
-    float intervalStart;
-    float intervalEnd;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefficientVolumes;
     uint16_t dimx, dimy, dimz;
     std::shared_ptr<util::VectorFunctionI> legendreEvaluator;
@@ -157,9 +155,8 @@ LegendreSeriesEvaluator::LegendreSeriesEvaluator(uint32_t degree,
                                                  std::vector<std::string> coefficientVolumeFiles,
                                                  float intervalStart,
                                                  float intervalEnd)
-    : degree(degree)
-    , intervalStart(intervalStart)
-    , intervalEnd(intervalEnd)
+    : Attenuation4DEvaluatorI(intervalStart, intervalEnd)
+    , degree(degree)
 {
     if(coefficientVolumeFiles.size() != degree + 1)
     {
