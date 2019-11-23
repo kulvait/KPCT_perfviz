@@ -85,6 +85,20 @@ target_link_libraries(perfvizFourier ${MKL_CORE_LIBRARY})
 target_link_libraries(perfvizFourier ${PYTHON_LIBRARIES})
 install (TARGETS perfvizFourier RUNTIME DESTINATION .)
 
+SET(PERFVIZ_FOURIER_KVA_SOURCES src/perfviz-fourier-kva.cpp)
+add_executable(perfvizFourierKVA ${PERFVIZ_FOURIER_KVA_SOURCES})
+set_target_properties(
+    perfvizFourierKVA 
+    PROPERTIES 
+        OUTPUT_NAME "perfviz-fourier-kva"
+        SUFFIX ""
+)
+target_link_libraries(perfvizFourierKVA ctiol)
+target_link_libraries (perfvizFourierKVA ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(perfvizFourierKVA ${MKL_CORE_LIBRARY})
+target_link_libraries(perfvizFourierKVA ${PYTHON_LIBRARIES})
+install (TARGETS perfvizFourierKVA RUNTIME DESTINATION .)
+
 SET(PERFVIZXXX_SOURCES src/perfviz-engineer.cpp)
 add_executable(perfviz_engineer ${PERFVIZXXX_SOURCES})
 set_target_properties(
