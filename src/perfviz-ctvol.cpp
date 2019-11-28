@@ -336,9 +336,8 @@ int main(int argc, char* argv[])
             t /= a.secLength;
             if(t < a.startCTData_s || t > a.endCTData_s)
             {
-                LOGW << io::xprintf("Time %f is out of the range of fully represented CT data "
-                                    "[%fs, %fs], sweep=%02d, angle=%03d.",
-                                    t, a.startCTData_s, a.endCTData_s, sweepid, angleid);
+                LOGW << io::xprintf("Time %fs out of range [%fs, %fs], sweep=%02d, angle=%03d.", t,
+                                    a.startCTData_s, a.endCTData_s, sweepid, angleid);
             }
             if(angleid == 0)
             {
