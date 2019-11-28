@@ -25,7 +25,8 @@ public:
                            std::vector<std::string> coefficientVolumeFiles,
                            float intervalStart,
                            float intervalEnd,
-                           bool negativeAsZero = true);
+                           bool negativeAsZero = true,
+                           bool halfPeriodicFunctions = false);
 
     /**Destructor of FourierSeriesEvaluator class
      *
@@ -152,16 +153,19 @@ private:
      */
     void updateFramesStored(const uint16_t z);
     bool negativeAsZero;
+    bool halfPeriodicFunctions;
 };
 
 FourierSeriesEvaluator::FourierSeriesEvaluator(uint32_t degree,
                                                std::vector<std::string> coefficientVolumeFiles,
                                                float intervalStart,
                                                float intervalEnd,
-                                               bool negativeAsZero)
+                                               bool negativeAsZero,
+                                               bool halfPeriodicFunctions)
     : Attenuation4DEvaluatorI(intervalStart, intervalEnd)
     , degree(degree)
     , negativeAsZero(negativeAsZero)
+    , halfPeriodicFunctions(halfPeriodicFunctions)
 {
     if(coefficientVolumeFiles.size() != degree)
     {
@@ -198,7 +202,8 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(uint32_t degree,
             throw std::runtime_error(ERR);
         }
     }
-    fourierEvaluator = std::make_shared<util::FourierSeries>(degree, intervalStart, intervalEnd, 1);
+    fourierEvaluator = std::make_shared<util::FourierSeries>(degree, intervalStart, intervalEnd, 1,
+                                                             halfPeriodicFunctions);
     coefficientsStoredTime = new float[degree - 1];
     coefficientsIntervalStart = new float[degree - 1];
     fourierEvaluator->valuesAt(intervalStart, coefficientsStoredTime);

@@ -55,6 +55,9 @@ struct Arguments
     // Length of one second in the units of the domain
     float secLength = 1000;
 
+    // Specify basis
+    bool halfPeriodicFunctions = false;
+
     bool allowNegativeValues = false;
 
     // Tikhonov regularization parameter
@@ -117,6 +120,8 @@ int Arguments::parseArguments(int argc, char* argv[])
     app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
     app.add_flag("--only-aif", onlyaif, "Compute only AIF.");
     app.add_flag("--only-ttp", onlyttp, "Compute only TTP.");
+    app.add_flag("--half-periodic-functions", halfPeriodicFunctions,
+                 "Use Fourier basis and include half periodic functions.");
 
     try
     {
@@ -172,9 +177,9 @@ int main(int argc, char* argv[])
     dimz = di.dimz();
     LOGI << io::xprintf("Start time is %f and end time is %f", a.startTime, a.endTime);
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
-        = std::make_shared<util::FourierSeriesEvaluator>(a.fittedCoefficients.size(),
-                                                         a.fittedCoefficients, a.startTime,
-                                                         a.endTime, !a.allowNegativeValues);
+        = std::make_shared<util::FourierSeriesEvaluator>(
+            a.fittedCoefficients.size(), a.fittedCoefficients, a.startTime, a.endTime,
+            !a.allowNegativeValues, a.halfPeriodicFunctions);
     // Vizualization
     float* convolutionMatrix = new float[a.granularity * a.granularity];
     float* aif = new float[a.granularity];

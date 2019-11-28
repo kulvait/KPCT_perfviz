@@ -73,6 +73,7 @@ struct Arguments
      * @brief File to store AIF.
      */
     std::string storeAIF = "";
+    bool halfPeriodicFunctions = false;
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
@@ -112,6 +113,8 @@ int Arguments::parseArguments(int argc, char* argv[])
         ->check(CLI::ExistingFile);
     app.add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
     app.add_flag("--only-aif", onlyaif, "Compute only AIF.");
+    app.add_flag("--half-periodic-functions", halfPeriodicFunctions,
+                 "Use Fourier basis and include half periodic functions.");
 
     try
     {
@@ -169,7 +172,7 @@ int main(int argc, char* argv[])
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
         = std::make_shared<util::FourierSeriesEvaluator>(a.fittedCoefficients.size(),
                                                          a.fittedCoefficients, a.startTime,
-                                                         a.endTime, !a.allowNegativeValues);
+                                                         a.endTime, !a.allowNegativeValues, a.halfPeriodicFunctions);
     // Vizualization
     float* convolutionMatrix = new float[a.granularity * a.granularity];
     float* aif = new float[a.granularity]();
