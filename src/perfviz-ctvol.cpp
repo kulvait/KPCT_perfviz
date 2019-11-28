@@ -332,11 +332,12 @@ int main(int argc, char* argv[])
         {
             concentration = std::make_shared<util::CTEvaluator>(a.coefficientVolumeFiles,
                                                                 a.tickFiles, false, false, -1024.0);
+            // Timing information about CT acquisition is provided by means of tick files
             t = a.startOffset_ms + sweepid * a.totalSweepTime_ms + angleid * a.frameTime_ms;
             t /= a.secLength;
             if(t < a.startCTData_s || t > a.endCTData_s)
             {
-                LOGW << io::xprintf("Time %fs out of range [%fs, %fs], sweep=%02d, angle=%03d.", t,
+                LOGI << io::xprintf("Time %fs out of range [%fs, %fs], sweep=%02d, angle=%03d.", t,
                                     a.startCTData_s, a.endCTData_s, sweepid, angleid);
             }
             if(angleid == 0)
