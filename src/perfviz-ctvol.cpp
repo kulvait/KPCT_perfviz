@@ -40,12 +40,11 @@ struct Arguments
     /// Additional information about time offsets and other data
     std::vector<std::string> tickFiles;
 
-    /**
-     *Size of pause between sweeps [ms].
-     *
-     *Computed from DICOM files as 2088.88889ms. Based on experiment, it is 1171ms.
-     */
-    float pauseSize = 1171;
+    /// Number of sweeps
+    uint32_t sweepCount = 10;
+
+    /// Angles per sweep
+    uint32_t anglesPerSweep = 248;
 
     /** Frame Time. (0018, 1063) Nominal time (in msec) per individual frame.
      *
@@ -53,17 +52,18 @@ struct Arguments
      *First frame is aquired directly after pause. From DICOM it is 16.6666667ms. From
      *experiment 16.8ms.
      */
-    float frameTime = 16.8;
+    float frameTime_ms = 16.8;
 
-    /// Angles per sweep
-    uint32_t anglesPerSweep = 248;
+    /**
+     *Size of pause between sweeps [ms].
+     *
+     *Computed from DICOM files as 2088.88889ms. Based on experiment, it is 1171ms.
+     */
+    float pauseSize_ms = 1171;
 
     /// Start of C-Arm acquisition [ms].
-    float startOffset = 0.0;
-
-    // C-Arm CT and CT intervals should be ofsetted in a way that the half of the interval matches
-    // for both
-    bool intervalCenterOffset = false;
+    float startOffset_ms = 0.0;
+    float CTDataStartOffset_ms, CTDataCenterOffset_ms;
 
     /** Time conversion constant
      *
@@ -76,62 +76,86 @@ struct Arguments
     /// Number of threads, zero for no threading
     uint16_t threads = 0;
 
-    /// Angles per sweep
-    uint32_t sweepCount = 10;
-
     uint16_t dimx, dimy, dimz;
 
-    double totalSweepTime, startct, endct, startcarm, endcarm;
+    double totalSweepTime_ms, startCTData_s, endCTData_s, startcarm_s, endcarm_s;
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
 {
-    CLI::App app{ "Produces volumes of perfusion data for the time points of C-Arm CT protocol for "
-                  "classical CT data." };
+    CLI::App app{ "From the volumes of the CT data together with tick files with the time "
+                  "informations exports volumes to be used for the time points of C-Arm CT "
+                  "protocol." };
     app.add_option("output_folder", outputFolder,
                    "Folder to which output data of perfusion coefficients.")
         ->required()
         ->check(CLI::ExistingDirectory);
     app.add_option("static_reconstructions", coefficientVolumeFiles,
-                   "Coeficients of the basis functions fited by the algorithm. Orderred in the "
-                   "same order as the basis is sampled in a DEN file.")
+                   "Volume files equipped with the tick files in a DEN format.")
         ->required()
         ->check(CLI::ExistingFile);
-    app.add_option("-s,--pause-size", pauseSize,
-                   "Size of pause [ms]. This might be supplied for fine tuning of the algorithm."
-                   "[default is 1171] ")
-        ->check(CLI::Range(0.01, 100000.0));
-    app.add_option("-f,--frame-time", frameTime,
-                   "Frame Time. (0018, 1063) Nominal time (in msec) per individual frame (slice) "
-                   "[ms]. Might be supplied for fine tuning of the algorithm. [default is "
-                   "16.8]")
-        ->check(CLI::Range(0.01, 10000.0));
-    app.add_option("-a,--angles-per-sweep", anglesPerSweep,
-                   "Number of frames acquired per one sweep, defaults to 248")
+    CLI::Option_group* carm_cli
+        = app.add_option_group("C-Arm CT parameters", "Parameters to tune C-Arm CT acquisition.");
+    carm_cli->add_option("--sweep-count", sweepCount, "Number of sweeps. Default 10.")
+        ->check(CLI::Range(0, 100));
+    carm_cli
+        ->add_option("-a,--angles-per-sweep", anglesPerSweep,
+                     "Number of frames acquired per one sweep, defaults to 248")
         ->check(CLI::Range(1, 10000));
-    CLI::Option* cli_startOffset
-        = app.add_option(
-                 "-i,--start-offset", startOffset,
-                 "The timings for C-Arm and CT aquisition might differ. This offset [ms] "
-                 "controls how the acquisition of the C-Arm data is shifted relative to the "
-                 "latest time of the first CT stack volume [defaults to 0.0].")
-              ->check(CLI::Range(-1000000.0, 1000000.0));
-    CLI::Option* cli_centralTime
-        = app.add_flag("--interval-center-offset", intervalCenterOffset,
-                       "The timings for C-Arm and CT aquisition might differ. When this setting is "
-                       "enabled, then the middle of the CT interval will match the middle of the "
-                       "C-Arm CT interval [defaults to false].");
-    cli_centralTime->excludes(cli_startOffset);
-    cli_startOffset->excludes(cli_centralTime);
-    app.add_option("-c,--sec-length", secLength,
-                   "Length of one second in the units of the domain. Defaults to 1000.")
+    carm_cli
+        ->add_option("-f,--frame-time", frameTime_ms,
+                     "Frame Time. (0018, 1063) Nominal time (in msec) per individual frame (slice) "
+                     "[ms]. Might be supplied for fine tuning of the algorithm. [default is "
+                     "16.8]")
+        ->check(CLI::Range(0.01, 10000.0));
+    carm_cli
+        ->add_option("-s,--pause-size", pauseSize_ms,
+                     "Size of pause [ms]. This might be supplied for fine tuning of the algorithm."
+                     "[default is 1171] ")
+        ->check(CLI::Range(0.01, 100000.0));
+    CLI::Option_group* interval_cli = app.add_option_group(
+        "Interval adjustments", "Parameters to align CT with the C-Arm CT interval.");
+    interval_cli
+        ->add_option("--sec-length", secLength,
+                     "Units of C-Arm CT interval are usually miliseconds while timing of CT is in "
+                     "seconds. How many units of the C-Arm interval [ms] are equal to one unit of "
+                     "the CT interval [s]. Defaults to 1000.")
         ->check(CLI::Range(0.0, 1000000.0));
+    CLI::Option* startOffset_option
+        = interval_cli
+              ->add_option("--start-offset", startOffset_ms,
+                           "The timings for C-Arm and CT aquisition might differ. This offset [ms] "
+                           "controls how the zero time of the acquisition of the C-Arm data is "
+                           "shifted relative to the zero time of the CT data. Note that the zero "
+                           "time might not be represented in the volume data. [defaults to 0.0]")
+              ->check(CLI::Range(-1000000.0, 1000000.0));
+    CLI::Option* CTDataStartOffset_option
+        = interval_cli
+              ->add_option(
+                  "--ct-start-offset", CTDataStartOffset_ms,
+                  "The timings for C-Arm and CT aquisition might differ. This offset when "
+                  "specified [ms] controls how the acquisition of the C-Arm data is shifted "
+                  "relative to the latest time of the first CT stack volume [by default, "
+                  "--start-offset 0.0 is used].")
+              ->check(CLI::Range(-1000000.0, 1000000.0));
+    CLI::Option* CTDataCenterOffset_option
+        = interval_cli
+              ->add_option("--interval-center-offset", CTDataCenterOffset_ms,
+                           "The timings for C-Arm and CT aquisition might differ. By specifiing "
+                           "this parameter, you set the offset [ms] of the middles of the C-Arm CT "
+                           "interval with respect to CT interval [by default, --start-offset 0.0 "
+                           "is used].")
+              ->check(CLI::Range(-1000000.0, 1000000.0));
+    startOffset_option->excludes(CTDataStartOffset_option);
+    startOffset_option->excludes(CTDataCenterOffset_option);
+    CTDataStartOffset_option->excludes(startOffset_option);
+    CTDataStartOffset_option->excludes(CTDataCenterOffset_option);
+    CTDataCenterOffset_option->excludes(startOffset_option);
+    CTDataCenterOffset_option->excludes(CTDataStartOffset_option);
     app.add_option("-j,--threads", threads,
                    "Number of extra threads that application can use. Defaults to 0 which means "
                    "sychronous execution.")
         ->check(CLI::Range(0, 65535));
-    app.add_option("--sweep-count", sweepCount, "Number of sweeps. Default 10.")
-        ->check(CLI::Range(0, 100));
     try
     {
         app.parse(argc, argv);
@@ -173,7 +197,7 @@ int Arguments::parseArguments(int argc, char* argv[])
                 tickFiles.push_back(tickFile);
             }
         }
-        totalSweepTime = (anglesPerSweep - 1) * frameTime + pauseSize;
+        totalSweepTime_ms = (anglesPerSweep - 1) * frameTime_ms + pauseSize_ms;
         std::shared_ptr<io::Frame2DReaderI<float>> startData
             = std::make_shared<io::DenFrame2DReader<float>>(tickFiles[0]);
         std::shared_ptr<io::Frame2DReaderI<float>> endData
@@ -182,8 +206,8 @@ int Arguments::parseArguments(int argc, char* argv[])
         fs = startData->readFrame(0);
         fe = endData->readFrame(0);
         // Fifth element of frame is time
-        startct = fs->get(4, 0);
-        endct = fe->get(4, 0);
+        startCTData_s = fs->get(4, 0);
+        endCTData_s = fe->get(4, 0);
         float start, end;
         for(std::size_t z = 0; z != dimz; z++)
         {
@@ -191,37 +215,40 @@ int Arguments::parseArguments(int argc, char* argv[])
             fe = endData->readFrame(z);
             start = fs->get(4, 0);
             end = fe->get(4, 0);
-            if(start > startct)
+            if(start > startCTData_s)
             {
-                startct = start;
+                startCTData_s = start;
             }
-            if(end < endct)
+            if(end < endCTData_s)
             {
-                endct = end;
+                endCTData_s = end;
             }
         }
-        if(endct - startct <= 0.0)
+        if(endCTData_s - startCTData_s <= 0.0)
         {
-            LOGE << io::xprintf(
-                "CT aquisition start of the interval %f is after or precisely at its end %f",
-                startct, endct);
+            LOGE << io::xprintf("CT data provided inconsistent start %f and end %f stamps!",
+                                startCTData_s, endCTData_s);
             return -1;
         }
-        if(intervalCenterOffset)
+        if(CTDataStartOffset_option->count() > 0)
         {
-            double halfcarm
-                = (totalSweepTime * (sweepCount - 1) + (anglesPerSweep - 1) * frameTime) / 2;
-            double halfct = (endct - startct) * secLength / 2;
-            startOffset = halfct - halfcarm;
+            startOffset_ms = startCTData_s * secLength + CTDataStartOffset_ms;
+        } else if(CTDataCenterOffset_option->count() > 0)
+        {
+            double halfCarmInterval_ms
+                = (totalSweepTime_ms * (sweepCount - 1) + (anglesPerSweep - 1) * frameTime_ms) / 2;
+            double halfCTDataInterval_ms = (endCTData_s - startCTData_s) * secLength / 2;
+            startOffset_ms = startCTData_s * secLength + halfCTDataInterval_ms - halfCarmInterval_ms
+                + CTDataCenterOffset_ms;
         }
-        startcarm = (startct * secLength + startOffset) / secLength;
-        endcarm = (startct * secLength + startOffset + totalSweepTime * (sweepCount - 1)
-                   + (anglesPerSweep - 1) * frameTime)
+        startcarm_s = startOffset_ms / secLength;
+        endcarm_s = (startOffset_ms + totalSweepTime_ms * (sweepCount - 1)
+                     + (anglesPerSweep - 1) * frameTime_ms)
             / secLength;
         // startct is the latest time from the first stack
         // endct is the earliest time from the last stack
-        LOGI << io::xprintf("C-Arm data interval is [%f, %f]", startcarm, endcarm);
-        LOGI << io::xprintf("CT data interval is [%f, %f]", startct, endct);
+        LOGI << io::xprintf("C-Arm data interval is [%f, %f]", startcarm_s, endcarm_s);
+        LOGI << io::xprintf("CT data coverred interval is [%f, %f]", startCTData_s, endCTData_s);
 
     } catch(const CLI::ParseError& e)
     {
@@ -296,22 +323,22 @@ int main(int argc, char* argv[])
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration;
     for(uint32_t sweepid = 0; sweepid != a.sweepCount; sweepid++)
     {
-	if(threadpool != nullptr)
-	{
-        	threadpool->init();
-        	threadpool->resize(a.threads);
-	}
+        if(threadpool != nullptr)
+        {
+            threadpool->init();
+            threadpool->resize(a.threads);
+        }
         for(uint32_t angleid = 0; angleid != a.anglesPerSweep; angleid++)
         {
             concentration = std::make_shared<util::CTEvaluator>(a.coefficientVolumeFiles,
                                                                 a.tickFiles, false, false, -1024.0);
-            t = a.startct * a.secLength + a.startOffset + sweepid * a.totalSweepTime
-                + angleid * a.frameTime;
+            t = a.startOffset_ms + sweepid * a.totalSweepTime_ms + angleid * a.frameTime_ms;
             t /= a.secLength;
-            if(t < a.startct || t > a.endct)
+            if(t < a.startCTData_s || t > a.endCTData_s)
             {
-                LOGW << io::xprintf("Time %f is out of the range [%f, %f], sweep=%02d, angle=%03d.",
-                                    t, a.startct, a.endct, sweepid, angleid);
+                LOGW << io::xprintf("Time %f is out of the range of fully represented CT data "
+                                    "[%fs, %fs], sweep=%02d, angle=%03d.",
+                                    t, a.startCTData_s, a.endCTData_s, sweepid, angleid);
             }
             if(angleid == 0)
             {
