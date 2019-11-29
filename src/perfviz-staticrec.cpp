@@ -60,6 +60,7 @@ struct Arguments
      */
     bool vizualize = false;
     bool onlyaif = false;
+    float water_value = -0.027;
     /**
      * @brief File to store AIF.
      */
@@ -70,10 +71,18 @@ int Arguments::parseArguments(int argc, char* argv[])
 {
     CLI::App app{ "Visualization of perfusion parameters CT based on fiting of splines to a static "
                   "reconstructions." };
-    app.add_option("-j,--threads", threads,
-                   "Number of extra threads that application can use. Defaults to 0 which means "
-                   "sychronous execution.")
-        ->check(CLI::Range(0, 65535));
+    app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
+    app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
+    app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
+    app.add_option("output_folder", outputFolder,
+                   "Folder to which output data of perfusion coefficients.")
+        ->required()
+        ->check(CLI::ExistingDirectory);
+    app.add_option("static_reconstructions", coefficientVolumeFiles,
+                   "Coeficients of the basis functions fited by the algorithm. Orderred in the "
+                   "same order as the basis is sampled in a DEN file.")
+        ->required()
+        ->check(CLI::ExistingFile);
     app.add_option("-i,--sweep-time", sweepTime,
                    "Sweep time between the starts of two consecutive acquisitions in miliseconds."
                    "[defaults to 5316].")
@@ -90,22 +99,16 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "Length of one second in the units of the domain. Defaults to 1000.")
         ->check(CLI::Range(0.0, 1000000.0));
     app.add_flag("-v,--vizualize", vizualize, "Vizualize AIF.");
+    app.add_option("--water-value", water_value,
+                   "If the AIF vizualization should be in HU, use this water_value.");
     app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
     app.add_flag("--only-aif", onlyaif, "Vizualize only aif.");
     app.add_flag("--only-ttp", onlyttp, "Compute only ttp.");
-    app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
-    app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
-    app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
 
-    app.add_option("output_folder", outputFolder,
-                   "Folder to which output data of perfusion coefficients.")
-        ->required()
-        ->check(CLI::ExistingDirectory);
-    app.add_option("static_reconstructions", coefficientVolumeFiles,
-                   "Coeficients of the basis functions fited by the algorithm. Orderred in the "
-                   "same order as the basis is sampled in a DEN file.")
-        ->required()
-        ->check(CLI::ExistingFile);
+    app.add_option("-j,--threads", threads,
+                   "Number of extra threads that application can use. Defaults to 0 which means "
+                   "sychronous execution.")
+        ->check(CLI::Range(0, 65535));
 
     try
     {
@@ -184,7 +187,13 @@ int main(int argc, char* argv[])
         std::vector<double> plotme;
         for(uint32_t i = 0; i != a.granularity; i++)
         {
-            plotme.push_back(aif[i]);
+            if(a.water_value > 0)
+            {
+                plotme.push_back(aif[i] * 1000 / a.water_value);
+            } else
+            {
+                plotme.push_back(aif[i]);
+            }
             taxis.push_back(_taxis[i]);
         }
         std::shared_ptr<util::ReconstructedSeriesEvaluator> concrse
