@@ -219,8 +219,20 @@ ReconstructedSeriesEvaluator::ReconstructedSeriesEvaluator(
             io::throwerr("There are incompatible coefficients!");
         }
     }
-    fitter = std::make_shared<math::SplineFitter>(attenuationVolumeFiles.size(), DF_PP_CUBIC,
-                                                  DF_PP_AKIMA);
+    if(breakpointsNum >= 5)
+    {
+        fitter = std::make_shared<math::SplineFitter>(attenuationVolumeFiles.size(), DF_PP_CUBIC,
+                                                      DF_PP_AKIMA);
+    } else if(breakpointsNum == 4)
+    {
+        fitter = std::make_shared<math::SplineFitter>(attenuationVolumeFiles.size(), DF_PP_CUBIC,
+                                                      DF_PP_BESSEL);
+
+    } else
+    {
+        fitter = std::make_shared<math::SplineFitter>(attenuationVolumeFiles.size(), DF_PP_CUBIC,
+                                                      DF_PP_NATURAL);
+    }
     storedZ = 1;
     updateStoredVals(0); // Just to have something in thye storedInitVal pointer
 }
