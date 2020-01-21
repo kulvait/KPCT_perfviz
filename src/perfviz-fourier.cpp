@@ -63,49 +63,24 @@ struct Arguments
     // Tikhonov regularization parameter
     float lambdaRel = 0.2;
 
-    // If only ttp should be computed
-    bool onlyttp = false;
-
-    /**Vizualize base functions.
-     *
-     *If set vizualize base functions using Python.
-     */
     bool vizualize = false;
-    bool onlyaif = false;
+    bool showBasis = false;
+    bool showAIF = false;
+    bool stopAfterVizualization = false;
+    bool stopAfterTTP = false;
     /**
      * @brief File to store AIF.
      */
-    std::string storeAIF = "";
+    std::string aifImageFile = "";
+    std::string basisImageFile = "";
 };
 
 int Arguments::parseArguments(int argc, char* argv[])
 {
-    CLI::App app{ "Visualization of perfusion parameters CT based on Legendre fiting." };
-    app.add_option("-j,--threads", threads,
-                   "Number of extra threads that application can use. Defaults to 0 which means "
-                   "sychronous execution.")
-        ->check(CLI::Range(0, 65535));
-    app.add_option("-i,--start-time", startTime,
-                   "Start of the interval in miliseconds of the support of the functions of time "
-                   "[defaults to 4117, 247*16.6].")
-        ->check(CLI::Range(0.0, 100000.0));
-    app.add_option("-e,--end-time", endTime,
-                   "End of the interval in miliseconds of the support of the functions of time "
-                   "[defaults to 56000, duration of 9 sweeps].")
-        ->check(CLI::Range(0.0, 100000.0));
-    app.add_option("-g,--granularity", granularity,
-                   "Granularity of the time is number of time points to which time interval is "
-                   "discretized. Defaults to 100.")
-        ->check(CLI::Range(1, 1000000));
-    app.add_option("-c,--sec-length", secLength,
-                   "Length of one second in the units of the domain. Defaults to 1000.")
-        ->check(CLI::Range(0.0, 1000000.0));
-    app.add_option("--lambda-rel", lambdaRel,
-                   "Tikhonov regularization parameter, defaults to 0.2.");
+    CLI::App app{ "Visualization of perfusion parameters based on Fourier coefficients." };
     app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
     app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
     app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
-
     app.add_option("output_folder", outputFolder,
                    "Folder to which output data after the linear regression.")
         ->required()
@@ -115,25 +90,78 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "coeficient that corresponds to the constant.")
         ->required()
         ->check(CLI::ExistingFile);
-    app.add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
-    app.add_flag("-v,--vizualize", vizualize, "Vizualize AIF and the basis.");
-    app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
-    app.add_flag("--only-aif", onlyaif, "Compute only AIF.");
-    app.add_flag("--only-ttp", onlyttp, "Compute only TTP.");
+	CLI::Option_group * interval_og = app.add_option_group("Interval specification", "Specification of the time interval parameters and its discretization.");
+    interval_og->add_option("-i,--start-time", startTime,
+                   "Start of the interval in miliseconds of the support of the functions of time "
+                   "[defaults to 4117, 247*16.6].")
+        ->check(CLI::Range(0.0, 100000.0));
+    interval_og->add_option("-e,--end-time", endTime,
+                   "End of the interval in miliseconds of the support of the functions of time "
+                   "[defaults to 56000, duration of 9 sweeps].")
+        ->check(CLI::Range(0.0, 100000.0));
+    interval_og->add_option("-c,--sec-length", secLength,
+                   "Length of one second in the units of the domain. Defaults to 1000.")
+        ->check(CLI::Range(0.0, 1000000.0));
+    interval_og->add_option("-g,--granularity", granularity,
+                   "Granularity of the time is number of time points to which time interval is "
+                   "discretized. Defaults to 100.")
+        ->check(CLI::Range(1, 1000000));
+
+
     app.add_flag("--half-periodic-functions", halfPeriodicFunctions,
                  "Use Fourier basis and include half periodic functions.");
+    app.add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
+    app.add_option("--lambda-rel", lambdaRel,
+                   "Tikhonov regularization parameter, defaults to 0.2.");
+    app.add_flag("-v,--vizualize", vizualize, "Vizualize AIF and the basis.");
+	CLI::Option_group * flow_og = app.add_option_group("Program flow parameters");
+    flow_og->add_option("-j,--threads", threads,
+                   "Number of extra threads that application can use. Defaults to 0 which means "
+                   "sychronous execution.")
+        ->check(CLI::Range(0, 65535));
+    flow_og->add_flag("--only-ttp", stopAfterTTP, "Compute only TTP.");
+    CLI::Option_group* vizual_og = app.add_option_group("Vizualization configuration.", "Configure output of basis and AIF to images and vizualization");
+    vizual_og->add_flag("-v,--vizualize", vizualize, "Vizualization.");
+    vizual_og->add_flag("--show-basis", showBasis, "Show basis.");
+    vizual_og->add_flag("--show-aif", showAIF, "Show AIF.");
+    vizual_og->add_option("--store-aif", aifImageFile, "Store AIF into image file.")->check(CLI::ExistingFile);
+    vizual_og->add_option("--store-basis", basisImageFile, "Store basis into image file.")->check(CLI::ExistingFile);
 
     try
     {
+        std::string err;
         app.parse(argc, argv);
+        if(outputFolder.compare("-") == 0)
+        {
+            stopAfterVizualization = true;
+            LOGI << "No directory specified so that after visualization program ends.";
+        } else
+        {
+            if(!io::isDirectory(outputFolder))
+            {
+                err = io::xprintf("The path %s does not encode a valid directory!",
+                                  outputFolder.c_str());
+                LOGE << err;
+                return -1;
+            }
+        }
         if(!(startTime < endTime))
         {
-            io::throwerr("Start time %f must preceed end time %f.", startTime, endTime);
+            err = io::xprintf("Start time %f must preceed end time %f.", startTime, endTime);
+            LOGE << err;
+            return -1;
         }
         if(secLength == 0.0)
         {
-            io::throwerr("Length of the second is not positive!");
+            err = io::xprintf("Length of the second is not positive!");
+            LOGE << err;
+            return -1;
         }
+		if(vizualize)
+		{
+			showBasis = true;
+			showAIF = true;
+		}
     } catch(const CLI::ParseError& e)
     {
         int exitcode = app.exit(e);
@@ -185,13 +213,20 @@ int main(int argc, char* argv[])
     float* aif = new float[a.granularity];
     concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
-    if(a.vizualize || !a.storeAIF.empty())
+    if(a.showBasis || !a.basisImageFile.empty())
     {
         util::FourierSeries b(a.fittedCoefficients.size(), a.startTime, a.endTime, 1);
-        if(a.vizualize && !a.onlyaif)
+        if(a.showBasis)
         {
             b.plotFunctions();
         }
+		if(!a.basisImageFile.empty())
+		{
+			b.storeFunctions(a.basisImageFile);
+		}
+	}
+	if(a.showAIF || !a.aifImageFile.empty())
+	{
         std::vector<double> taxis;
         float* _taxis = new float[a.granularity];
         concentration->timeDiscretization(a.granularity, _taxis);
@@ -202,17 +237,17 @@ int main(int argc, char* argv[])
             taxis.push_back(_taxis[i]);
         }
         plt::plot(taxis, plotme);
-        if(a.vizualize)
+        if(a.showAIF)
         {
             plt::show();
         }
-        if(!a.storeAIF.empty())
+        if(!a.aifImageFile.empty())
         {
-            plt::save(a.storeAIF);
+            plt::save(a.aifImageFile);
         }
         delete[] _taxis;
     }
-    if(a.onlyaif)
+    if(a.stopAfterVizualization)
     {
         return 0;
     }
@@ -233,7 +268,7 @@ int main(int argc, char* argv[])
             io::xprintf("%s/TTP.den", a.outputFolder.c_str()), dimx, dimy, dimz);
     LOGD << "TTP computation.";
     tsd.computeTTP(a.granularity, ttp_w, aif);
-    if(!a.onlyttp)
+    if(!a.stopAfterTTP)
     {
         LOGD << "CBV, CBF and MTT computation.";
         std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w

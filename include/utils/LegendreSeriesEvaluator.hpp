@@ -23,7 +23,8 @@ public:
     LegendreSeriesEvaluator(uint32_t degree,
                             std::vector<std::string> coefficientVolumeFiles,
                             float intervalStart,
-                            float intervalEnd);
+                            float intervalEnd,
+                            bool negativeAsZero = true);
 
     /**Destructor of LegendreSeriesEvaluator class
      *
@@ -149,14 +150,17 @@ private:
      *
      */
     void updateFramesStored(const uint16_t z);
+    bool negativeAsZero;
 };
 
 LegendreSeriesEvaluator::LegendreSeriesEvaluator(uint32_t degree,
                                                  std::vector<std::string> coefficientVolumeFiles,
                                                  float intervalStart,
-                                                 float intervalEnd)
+                                                 float intervalEnd,
+                                                 bool negativeAsZero)
     : Attenuation4DEvaluatorI(intervalStart, intervalEnd)
     , degree(degree)
+    , negativeAsZero(negativeAsZero)
 {
     if(coefficientVolumeFiles.size() != degree + 1)
     {
@@ -250,7 +254,10 @@ float LegendreSeriesEvaluator::valueAt(const uint16_t x,
 {
     float val0 = valueAt_intervalStart(x, y, z);
     float v = valueAt_withoutOffset(x, y, z, t);
-    return std::max(float(0), v - val0);
+    if(negativeAsZero)
+        return std::max(float(0), v - val0);
+    else
+        return v - val0;
 }
 
 void LegendreSeriesEvaluator::updateLegendreValuesStored(const float t)
@@ -334,7 +341,14 @@ void LegendreSeriesEvaluator::frameAt(const uint16_t z, const float t, float* va
             {
                 val[y * dimx + x] += legendreValuesStored[d] * framesStored[d]->get(x, y);
             }
-            val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - valuesAtStart[y * dimx + x]);
+            if(negativeAsZero)
+            {
+                val[y * dimx + x]
+                    = std::max(float(0), val[y * dimx + x] - valuesAtStart[y * dimx + x]);
+            } else
+            {
+                val[y * dimx + x] = val[y * dimx + x] - valuesAtStart[y * dimx + x];
+            }
         }
     }
 }
@@ -356,7 +370,13 @@ void LegendreSeriesEvaluator::frameAt_customOffset(const uint16_t z,
             {
                 val[y * dimx + x] += legendreValuesStored[d] * framesStored[d]->get(x, y);
             }
-            val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - offset[y * dimx + x]);
+            if(negativeAsZero)
+            {
+                val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - offset[y * dimx + x]);
+            } else
+            {
+                val[y * dimx + x] = val[y * dimx + x] - offset[y * dimx + x];
+            }
         }
     }
 }

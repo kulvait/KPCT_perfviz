@@ -186,12 +186,11 @@ int Arguments::parseArguments(int argc, char* argv[])
                 throw new std::runtime_error(err);
             }
             std::string tickFile = f.substr(0, f.find_last_of(".")) + ".tick";
-            if(!io::fileExists(tickFile))
+            if(!io::isRegularFile(tickFile))
             {
-                std::string err = io::xprintf("There is no tick file %s.", tickFile.c_str());
+                std::string err = io::xprintf("Tick file %s does not exists.", tickFile.c_str());
                 LOGE << err;
-                throw new std::runtime_error(err);
-
+                throw std::runtime_error(err);
             } else
             {
                 tickFiles.push_back(tickFile);

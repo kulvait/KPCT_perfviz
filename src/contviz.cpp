@@ -121,7 +121,7 @@ int Arguments::parseArguments(int argc, char* argv[])
             output_x = io::xprintf("%s_x.den", prefix.c_str());
             output_y = io::xprintf("%s_y.den", prefix.c_str());
             output_z = io::xprintf("%s_z.den", prefix.c_str());
-            if(!io::fileExists(output_x) || !io::fileExists(output_y) || !io::fileExists(output_z))
+            if(!io::isRegularFile(output_x) || !io::isRegularFile(output_y) || !io::isRegularFile(output_z))
             {
                 LOGE << io::xprintf(
                     "Some of the gradient files required %s, %s or %s does not exist!",
