@@ -57,19 +57,19 @@ add_custom_target(formatWebkit
 ./formatWebkit
 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-SET(PERFVIZ_LEGENDRE_SOURCES src/perfviz-legendre.cpp)
-add_executable(perfvizLegendre ${PERFVIZ_LEGENDRE_SOURCES})
+SET(PERFVIZ_POLYNOMYAL_SOURCES src/perfviz-polynomial.cpp)
+add_executable(perfvizPolynomial ${PERFVIZ_POLYNOMYAL_SOURCES})
 set_target_properties(
-    perfvizLegendre
+    perfvizPolynomial
     PROPERTIES 
-        OUTPUT_NAME "perfviz-legendre"
+        OUTPUT_NAME "perfviz-polynomial"
         SUFFIX ""
 )
-target_link_libraries(perfvizLegendre ctiol)
-target_link_libraries(perfvizLegendre ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(perfvizLegendre ${MKL_CORE_LIBRARY})
-target_link_libraries(perfvizLegendre ${PYTHON_LIBRARIES})
-install (TARGETS perfvizLegendre RUNTIME DESTINATION .)
+target_link_libraries(perfvizPolynomial ctiol)
+target_link_libraries(perfvizPolynomial ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(perfvizPolynomial ${MKL_CORE_LIBRARY})
+target_link_libraries(perfvizPolynomial ${PYTHON_LIBRARIES})
+install (TARGETS perfvizPolynomial RUNTIME DESTINATION .)
 
 SET(PERFVIZ_FOURIER_SOURCES src/perfviz-fourier.cpp)
 add_executable(perfvizFourier ${PERFVIZ_FOURIER_SOURCES})

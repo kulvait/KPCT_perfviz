@@ -13,7 +13,7 @@
 #include "SVD/TikhonovInverse.hpp"
 #include "stringFormatter.h"
 #include "utils/Attenuation4DEvaluatorI.hpp"
-#include "utils/LegendreSeriesEvaluator.hpp"
+#include "utils/PolynomialSeriesEvaluator.hpp"
 #include "utils/TimeSeriesDiscretizer.hpp"
 
 #ifdef DEBUG
@@ -57,6 +57,9 @@ struct Arguments
 
 	bool allowNegativeValues = false;
 
+    bool chebyshev = false;
+    bool legendre = false;
+
     /**Vizualize base functions.
      *
      *If set vizualize base functions using Python.
@@ -85,8 +88,12 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "coeficient that corresponds to the constant.")
         ->required()
         ->check(CLI::ExistingFile);
+    CLI::Option_group * pol_og = app.add_option_group("Polynomial type");
+    pol_og->add_flag("--chebyshev", chebyshev, "Use Chebyshev polynomials.");
+    pol_og->add_flag("--legendre", legendre, "Use Legendre polynomials.");
+    pol_og->require_option(1);
     CLI::Option_group* interval_og = app.add_option_group(
-        "Interval specification",
+        "Interval specification and basis functions specification.",
         "Specification of the time interval parameters and its discretization.");
     interval_og
         ->add_option("-i,--start-time", startTime,
@@ -198,9 +205,17 @@ int main(int argc, char* argv[])
     dimx = di.dimx();
     dimy = di.dimy();
     dimz = di.dimz();
+	util::polynomialType pt;
+	if(	a.chebyshev)
+	{
+		pt = util::polynomialType::Chebyshev;
+	}else if(a.legendre)
+	{
+		pt = util::polynomialType::Legendre;
+	}
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
-        = std::make_shared<util::LegendreSeriesEvaluator>(
-            a.fittedCoefficients.size() - 1, a.fittedCoefficients, a.startTime, a.endTime, !a.allowNegativeValues);
+        = std::make_shared<util::PolynomialSeriesEvaluator>(
+            a.fittedCoefficients.size() - 1, a.fittedCoefficients, a.startTime, a.endTime, !a.allowNegativeValues, pt);
     // Vizualization
     float* convolutionMatrix = new float[a.granularity * a.granularity];
     float* aif = new float[a.granularity];
@@ -208,15 +223,21 @@ int main(int argc, char* argv[])
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
     if(a.showBasis || !a.basisImageFile.empty())
     {
-        util::LegendrePolynomialsExplicit b(a.fittedCoefficients.size() - 1, a.startTime, a.endTime,
-                                            1);
+		std::shared_ptr<util::VectorFunctionI> b;
+		if(a.chebyshev)
+		{
+			b = std::make_shared<util::ChebyshevPolynomialsExplicit>(a.fittedCoefficients.size() - 1, a.startTime, a.endTime, 1);
+		}else
+		{
+			b = std::make_shared<util::LegendrePolynomialsExplicit>(a.fittedCoefficients.size() - 1, a.startTime, a.endTime, 1);
+		}
         if(a.showBasis)
         {
-            b.plotFunctions();
+            b->plotFunctions();
         }
         if(!a.basisImageFile.empty())
         {
-            b.storeFunctions(a.basisImageFile);
+            b->storeFunctions(a.basisImageFile);
         }
     }
 

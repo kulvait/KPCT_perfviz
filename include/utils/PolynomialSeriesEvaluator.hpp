@@ -4,11 +4,15 @@
 #include <mutex>
 #include <vector>
 
+#include "FUN/ChebyshevPolynomialsExplicit.hpp"
+#include "FUN/LegendrePolynomialsExplicit.hpp"
 #include "utils/Attenuation4DEvaluatorI.hpp"
 
 namespace CTL::util {
 
-class LegendreSeriesEvaluator : public Attenuation4DEvaluatorI
+enum polynomialType { Legendre = 0, Chebyshev = 1 };
+
+class PolynomialSeriesEvaluator : public Attenuation4DEvaluatorI
 {
 public:
     /**Evaluation of the attenuation values based on the Legendre coeficients fiting.
@@ -20,16 +24,17 @@ public:
      *@param[in] intervalStart Start time.
      *@param[in] intervalEnd End time.
      */
-    LegendreSeriesEvaluator(uint32_t degree,
-                            std::vector<std::string> coefficientVolumeFiles,
-                            float intervalStart,
-                            float intervalEnd,
-                            bool negativeAsZero = true);
+    PolynomialSeriesEvaluator(uint32_t degree,
+                              std::vector<std::string> coefficientVolumeFiles,
+                              float intervalStart,
+                              float intervalEnd,
+                              bool negativeAsZero = true,
+                              polynomialType pt = polynomialType::Legendre);
 
-    /**Destructor of LegendreSeriesEvaluator class
+    /**Destructor of PolynomialSeriesEvaluator class
      *
      */
-    ~LegendreSeriesEvaluator();
+    ~PolynomialSeriesEvaluator();
 
     /**Function to obtain time discretization.
      *
@@ -127,8 +132,8 @@ private:
 
     uint32_t degree;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefficientVolumes;
-    uint16_t dimx, dimy, dimz;
-    std::shared_ptr<util::VectorFunctionI> legendreEvaluator;
+    uint32_t dimx, dimy, dimz;
+    std::shared_ptr<util::VectorFunctionI> polynomialBasisEvaluator;
     float* valuesAtStart;
     float* legendreValuesIntervalStart;
 
@@ -151,16 +156,20 @@ private:
      */
     void updateFramesStored(const uint16_t z);
     bool negativeAsZero;
+    polynomialType pt;
 };
 
-LegendreSeriesEvaluator::LegendreSeriesEvaluator(uint32_t degree,
-                                                 std::vector<std::string> coefficientVolumeFiles,
-                                                 float intervalStart,
-                                                 float intervalEnd,
-                                                 bool negativeAsZero)
+PolynomialSeriesEvaluator::PolynomialSeriesEvaluator(
+    uint32_t degree,
+    std::vector<std::string> coefficientVolumeFiles,
+    float intervalStart,
+    float intervalEnd,
+    bool negativeAsZero,
+    polynomialType pt)
     : Attenuation4DEvaluatorI(intervalStart, intervalEnd)
     , degree(degree)
     , negativeAsZero(negativeAsZero)
+    , pt(pt)
 {
     if(coefficientVolumeFiles.size() != degree + 1)
     {
@@ -191,12 +200,19 @@ LegendreSeriesEvaluator::LegendreSeriesEvaluator(uint32_t degree,
             io::throwerr("There are incompatible coefficients!");
         }
     }
-    legendreEvaluator = std::make_shared<util::LegendrePolynomialsExplicit>(degree, intervalStart,
-                                                                            intervalEnd, 1);
+    if(pt == polynomialType::Legendre)
+    {
+        polynomialBasisEvaluator = std::make_shared<util::LegendrePolynomialsExplicit>(
+            degree, intervalStart, intervalEnd, 1);
+    } else
+    {
+        polynomialBasisEvaluator = std::make_shared<util::ChebyshevPolynomialsExplicit>(
+            degree, intervalStart, intervalEnd, 1);
+    }
     legendreValuesStored = new float[degree];
     legendreValuesIntervalStart = new float[degree];
-    legendreEvaluator->valuesAt(intervalStart, legendreValuesStored);
-    legendreEvaluator->valuesAt(intervalStart, legendreValuesIntervalStart);
+    polynomialBasisEvaluator->valuesAt(intervalStart, legendreValuesStored);
+    polynomialBasisEvaluator->valuesAt(intervalStart, legendreValuesIntervalStart);
     storedTime = intervalStart;
     storedZ = 0;
     for(uint32_t i = 0; i != degree; i++)
@@ -206,7 +222,7 @@ LegendreSeriesEvaluator::LegendreSeriesEvaluator(uint32_t degree,
     valuesAtStart = new float[dimx * dimy](); // Constructor is not filling this array
 }
 
-LegendreSeriesEvaluator::~LegendreSeriesEvaluator()
+PolynomialSeriesEvaluator::~PolynomialSeriesEvaluator()
 {
     if(legendreValuesStored != nullptr)
     {
@@ -222,7 +238,7 @@ LegendreSeriesEvaluator::~LegendreSeriesEvaluator()
     }
 }
 
-void LegendreSeriesEvaluator::timeDiscretization(const uint32_t granularity, float* timePoints)
+void PolynomialSeriesEvaluator::timeDiscretization(const uint32_t granularity, float* timePoints)
 {
     double time = intervalStart;
     double increment = (intervalEnd - intervalStart) / double(granularity - 1);
@@ -233,9 +249,9 @@ void LegendreSeriesEvaluator::timeDiscretization(const uint32_t granularity, flo
     }
 }
 
-bool LegendreSeriesEvaluator::isTimeDiscretizedEvenly() { return true; }
+bool PolynomialSeriesEvaluator::isTimeDiscretizedEvenly() { return true; }
 
-void LegendreSeriesEvaluator::timeSeriesIn(
+void PolynomialSeriesEvaluator::timeSeriesIn(
     const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)
 {
     double time = intervalStart;
@@ -247,10 +263,10 @@ void LegendreSeriesEvaluator::timeSeriesIn(
     }
 }
 
-float LegendreSeriesEvaluator::valueAt(const uint16_t x,
-                                       const uint16_t y,
-                                       const uint16_t z,
-                                       const float t)
+float PolynomialSeriesEvaluator::valueAt(const uint16_t x,
+                                         const uint16_t y,
+                                         const uint16_t z,
+                                         const float t)
 {
     float val0 = valueAt_intervalStart(x, y, z);
     float v = valueAt_withoutOffset(x, y, z, t);
@@ -260,16 +276,16 @@ float LegendreSeriesEvaluator::valueAt(const uint16_t x,
         return v - val0;
 }
 
-void LegendreSeriesEvaluator::updateLegendreValuesStored(const float t)
+void PolynomialSeriesEvaluator::updateLegendreValuesStored(const float t)
 {
     if(storedTime != t)
     {
-        legendreEvaluator->valuesAt(t, legendreValuesStored);
+        polynomialBasisEvaluator->valuesAt(t, legendreValuesStored);
         storedTime = t;
     }
 }
 
-void LegendreSeriesEvaluator::updateFramesStored(const uint16_t z)
+void PolynomialSeriesEvaluator::updateFramesStored(const uint16_t z)
 {
 
     if(storedZ != z)
@@ -283,9 +299,9 @@ void LegendreSeriesEvaluator::updateFramesStored(const uint16_t z)
     }
 }
 
-float LegendreSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
-                                                     const uint16_t y,
-                                                     const uint16_t z)
+float PolynomialSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
+                                                       const uint16_t y,
+                                                       const uint16_t z)
 {
 
     std::unique_lock<std::mutex> lock(globalsAccess);
@@ -298,10 +314,10 @@ float LegendreSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
     return val;
 }
 
-float LegendreSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
-                                                     const uint16_t y,
-                                                     const uint16_t z,
-                                                     const float t)
+float PolynomialSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
+                                                       const uint16_t y,
+                                                       const uint16_t z,
+                                                       const float t)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateLegendreValuesStored(t);
@@ -314,16 +330,16 @@ float LegendreSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
     return val;
 }
 
-void LegendreSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val)
+void PolynomialSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
     std::fill_n(valuesAtStart, dimx * dimy, float(0.0));
     std::fill_n(val, dimx * dimy, float(0.0));
     // Initialize values of legendre polynomials at the time intervalStart
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 0; d != degree; d++)
             {
@@ -333,9 +349,9 @@ void LegendreSeriesEvaluator::frameAt(const uint16_t z, const float t, float* va
         }
     }
     updateLegendreValuesStored(t);
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 0; d != degree; d++)
             {
@@ -353,18 +369,18 @@ void LegendreSeriesEvaluator::frameAt(const uint16_t z, const float t, float* va
     }
 }
 
-void LegendreSeriesEvaluator::frameAt_customOffset(const uint16_t z,
-                                                   const float t,
-                                                   float* offset,
-                                                   float* val)
+void PolynomialSeriesEvaluator::frameAt_customOffset(const uint16_t z,
+                                                     const float t,
+                                                     float* offset,
+                                                     float* val)
 {
     std::fill_n(val, dimx * dimy, float(0.0));
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
     updateLegendreValuesStored(t);
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 0; d != degree; d++)
             {
@@ -380,16 +396,17 @@ void LegendreSeriesEvaluator::frameAt_customOffset(const uint16_t z,
         }
     }
 }
-void LegendreSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val)
+
+void PolynomialSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val)
 {
 
     std::fill_n(val, dimx * dimy, float(0.0));
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
 
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 0; d != degree; d++)
             {
@@ -398,9 +415,10 @@ void LegendreSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val
         }
     }
 }
-void LegendreSeriesEvaluator::frameTimeSeries(const uint16_t z,
-                                              const uint32_t granularity,
-                                              float* val)
+
+void PolynomialSeriesEvaluator::frameTimeSeries(const uint16_t z,
+                                                const uint32_t granularity,
+                                                float* val)
 {
     double time = intervalStart;
     double increment = (intervalEnd - intervalStart) / double(granularity - 1);
