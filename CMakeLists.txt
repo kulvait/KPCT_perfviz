@@ -37,7 +37,7 @@ find_package(MKL)
 include_directories(${MKL_INCLUDE_DIRS})
 
 #CT input output library
-FILE( GLOB CTIOL_SRC ${CMAKE_SOURCE_DIR}/submodules/CTIOL/src/*.cpp ${CMAKE_SOURCE_DIR}/submodules/CTIOL/src/ARGPARSE/*.cpp)
+FILE( GLOB CTIOL_SRC ${CMAKE_SOURCE_DIR}/submodules/CTIOL/src/*.cpp ${CMAKE_SOURCE_DIR}/submodules/CTIOL/src/PROG/*.cpp)
 add_library(ctiol ${CTIOL_SRC})
 target_link_libraries(ctiol stdc++fs)#include <experimental/filesystem>
 include_directories(${CMAKE_SOURCE_DIR}/submodules/CTIOL/include)
