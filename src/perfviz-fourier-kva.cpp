@@ -170,8 +170,7 @@ int main(int argc, char* argv[])
     dimz = di.dimz();
     LOGI << io::xprintf("Start time is %f and end time is %f", a.startTime, a.endTime);
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
-        = std::make_shared<util::FourierSeriesEvaluator>(a.fittedCoefficients.size(),
-                                                         a.fittedCoefficients, a.startTime,
+        = std::make_shared<util::FourierSeriesEvaluator>(a.fittedCoefficients, a.startTime,
                                                          a.endTime, !a.allowNegativeValues, a.halfPeriodicFunctions);
     // Vizualization
     float* convolutionMatrix = new float[a.granularity * a.granularity];

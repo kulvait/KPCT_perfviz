@@ -71,6 +71,9 @@ public:
     bool showAIF = false;
     bool stopAfterVizualization = false;
     bool stopAfterTTP = false;
+	/*Default negative to show raw values.
+	*/
+    float water_value = -0.027;
     /**
      * @brief File to store AIF.
      */
@@ -80,16 +83,21 @@ public:
 
 void Args::defineArguments()
 {
-    cliApp->add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
-    cliApp->add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
-    cliApp->add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
-    cliApp->add_option("output_folder", outputFolder,
-                   "Folder to which output data after the linear regression, specify - for no "
-                   "computation of perfusion parameters.")
+    cliApp->add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")
         ->required();
-    cliApp->add_option("fitted_coeficients", fittedCoefficients,
-                   "Fourier coeficients fited by the algorithm. Orderred from the first "
-                   "coeficient that corresponds to the constant.")
+    cliApp->add_option("ify", ify, "Pixel based y coordinate of arthery input function")
+        ->required();
+    cliApp->add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")
+        ->required();
+    cliApp
+        ->add_option("output_folder", outputFolder,
+                     "Folder to which output data after the linear regression, specify - for no "
+                     "computation of perfusion parameters.")
+        ->required();
+    cliApp
+        ->add_option("fitted_coeficients", fittedCoefficients,
+                     "Fourier coeficients fited by the algorithm. Orderred from the first "
+                     "coeficient that corresponds to the constant.")
         ->required()
         ->check(CLI::ExistingFile);
     CLI::Option_group* interval_og = cliApp->add_option_group(
@@ -116,18 +124,20 @@ void Args::defineArguments()
         ->check(CLI::Range(1, 1000000));
 
     cliApp->add_flag("--half-periodic-functions", halfPeriodicFunctions,
-                 "Use Fourier basis and include half periodic functions.");
+                     "Use Fourier basis and include half periodic functions.");
     cliApp->add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
     cliApp->add_option("--lambda-rel", lambdaRel,
-                   "Tikhonov regularization parameter, defaults to 0.2.");
+                       "Tikhonov regularization parameter, defaults to 0.2.");
     cliApp->add_flag("-v,--vizualize", vizualize, "Vizualize AIF and the basis.");
     CLI::Option_group* flow_og = cliApp->add_option_group("Program flow parameters");
     addThreadingArgs(flow_og);
     flow_og->add_flag("--only-ttp", stopAfterTTP, "Compute only TTP.");
     CLI::Option_group* vizual_og
         = cliApp->add_option_group("Vizualization configuration.",
-                               "Configure output of basis and AIF to images and vizualization");
+                                   "Configure output of basis and AIF to images and vizualization");
     vizual_og->add_flag("-v,--vizualize", vizualize, "Vizualization.");
+    vizual_og->add_option("--water-value", water_value,
+                   "If the AIF vizualization should be in HU, use this water_value.");
     vizual_og->add_flag("--show-basis", showBasis, "Show basis.");
     vizual_og->add_flag("--show-aif", showAIF, "Show AIF.");
     vizual_og->add_option("--store-aif", aifImageFile, "Store AIF into image file.");
@@ -192,9 +202,9 @@ int main(int argc, char* argv[])
     dimz = di.dimz();
     LOGI << io::xprintf("Start time is %f and end time is %f", ARG.startTime, ARG.endTime);
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
-        = std::make_shared<util::FourierSeriesEvaluator>(
-            ARG.fittedCoefficients.size(), ARG.fittedCoefficients, ARG.startTime, ARG.endTime,
-            !ARG.allowNegativeValues, ARG.halfPeriodicFunctions);
+        = std::make_shared<util::FourierSeriesEvaluator>(ARG.fittedCoefficients, ARG.startTime,
+                                                         ARG.endTime, !ARG.allowNegativeValues,
+                                                         ARG.halfPeriodicFunctions);
     // Vizualization
     float* convolutionMatrix = new float[ARG.granularity * ARG.granularity];
     float* aif = new float[ARG.granularity];
@@ -248,7 +258,8 @@ int main(int argc, char* argv[])
                                     ARG.secLength, ARG.threads);
     if(ARG.vizualize)
     {
-        tsd.visualizeConvolutionKernel(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity, convolutionMatrix);
+        tsd.visualizeConvolutionKernel(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity,
+                                       convolutionMatrix);
     }
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> ttp_w
         = std::make_shared<io::DenAsyncFrame2DWritter<float>>(

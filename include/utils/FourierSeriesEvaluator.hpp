@@ -13,16 +13,14 @@ class FourierSeriesEvaluator : public Attenuation4DEvaluatorI
 public:
     /**Evaluation of the attenuation values based on the Legendre coeficients fiting.
      *
-     *@param[in] degree Polynomial degree, should be equal to coefficientVolumes.size() - 1 since
-     *the first coeficient represent constant, that is polynomial of zeroth order.
-     *@param[in] coefficientVolumeFiles Files with fitted coefficient volumes of related Legendre
-     *polynomials.
+     *@param[in] coefficientVolumeFiles Files with fitted coefficient volumes of related functions
+     *from given Fourier basis.
      *@param[in] intervalStart Start time.
      *@param[in] intervalEnd End time.
      *@param[in] negativeAsZero Negative value is treated as zero.
+     *@param[in] halfPeriodicFunctions Use basis where the first functions have a half period.
      */
-    FourierSeriesEvaluator(uint32_t degree,
-                           std::vector<std::string> coefficientVolumeFiles,
+    FourierSeriesEvaluator(std::vector<std::string> coefficientVolumeFiles,
                            float intervalStart,
                            float intervalEnd,
                            bool negativeAsZero = true,
@@ -127,8 +125,8 @@ private:
      */
     void frameAt_intervalStart(const uint16_t z, float* val);
 
-    uint32_t degree;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefficientVolumes;
+    uint32_t basisSize;
     uint16_t dimx, dimy, dimz;
     std::shared_ptr<util::VectorFunctionI> fourierEvaluator;
     float* valuesAtStart;
@@ -156,33 +154,26 @@ private:
     bool halfPeriodicFunctions;
 };
 
-FourierSeriesEvaluator::FourierSeriesEvaluator(uint32_t degree,
-                                               std::vector<std::string> coefficientVolumeFiles,
+FourierSeriesEvaluator::FourierSeriesEvaluator(std::vector<std::string> coefficientVolumeFiles,
                                                float intervalStart,
                                                float intervalEnd,
                                                bool negativeAsZero,
                                                bool halfPeriodicFunctions)
     : Attenuation4DEvaluatorI(intervalStart, intervalEnd)
-    , degree(degree)
     , negativeAsZero(negativeAsZero)
     , halfPeriodicFunctions(halfPeriodicFunctions)
 {
-    if(coefficientVolumeFiles.size() != degree)
-    {
-        io::throwerr("Number of files with Fourier coefficients have to be equal to degree, "
-                     "but is %d and degree=%d.",
-                     coefficientVolumeFiles.size(), degree);
-    }
-    if(degree < 2)
+    basisSize = coefficientVolumeFiles.size();
+    if(basisSize < 2)
     {
         std::string ERR = io::xprintf("There must be at least one more function than constant, "
-                                      "menas degree >= 2, but degree =%d.",
-                                      degree);
+                                      "menas basisSize >= 2, but basisSize =%d.",
+                                      basisSize);
         LOGE << ERR;
         throw std::runtime_error(ERR);
     }
     std::shared_ptr<io::Frame2DReaderI<float>> pr;
-    for(std::size_t i = 1; i < degree; i++)
+    for(std::size_t i = 1; i < basisSize; i++)
     {
         pr = std::make_shared<io::DenFrame2DReader<float>>(coefficientVolumeFiles[i]);
         coefficientVolumes.push_back(pr);
@@ -202,15 +193,15 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(uint32_t degree,
             throw std::runtime_error(ERR);
         }
     }
-    fourierEvaluator = std::make_shared<util::FourierSeries>(degree, intervalStart, intervalEnd, 1,
-                                                             halfPeriodicFunctions);
-    coefficientsStoredTime = new float[degree - 1];
-    coefficientsIntervalStart = new float[degree - 1];
+    fourierEvaluator = std::make_shared<util::FourierSeries>(basisSize, intervalStart, intervalEnd,
+                                                             1, halfPeriodicFunctions);
+    coefficientsStoredTime = new float[basisSize - 1];
+    coefficientsIntervalStart = new float[basisSize - 1];
     fourierEvaluator->valuesAt(intervalStart, coefficientsStoredTime);
     fourierEvaluator->valuesAt(intervalStart, coefficientsIntervalStart);
     storedTime = intervalStart;
     storedZ = 0;
-    for(uint32_t i = 1; i < degree; i++)
+    for(uint32_t i = 1; i < basisSize; i++)
     {
         framesStored.push_back(coefficientVolumes[i - 1]->readFrame(storedZ));
     }
@@ -286,7 +277,7 @@ void FourierSeriesEvaluator::updateFramesStored(const uint16_t z)
     if(storedZ != z)
     {
         framesStored.clear();
-        for(uint32_t i = 1; i < degree; i++)
+        for(uint32_t i = 1; i < basisSize; i++)
         {
             framesStored.push_back(coefficientVolumes[i - 1]->readFrame(z));
         }
@@ -302,7 +293,7 @@ float FourierSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
     float val = 0.0;
-    for(uint32_t i = 1; i < degree; i++)
+    for(uint32_t i = 1; i < basisSize; i++)
     {
         val += coefficientsIntervalStart[i - 1] * framesStored[i - 1]->get(x, y);
     }
@@ -318,7 +309,7 @@ float FourierSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
     updateCoefficientsStored(t);
     updateFramesStored(z);
     float val = 0.0;
-    for(uint32_t i = 1; i != degree; i++)
+    for(uint32_t i = 1; i != basisSize; i++)
     {
         val += coefficientsStoredTime[i - 1] * framesStored[i - 1]->get(x, y);
     }
@@ -336,7 +327,7 @@ void FourierSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val
     {
         for(int x = 0; x != dimx; x++)
         {
-            for(uint32_t d = 1; d < degree; d++)
+            for(uint32_t d = 1; d < basisSize; d++)
             {
                 valuesAtStart[y * dimx + x]
                     += coefficientsIntervalStart[d - 1] * framesStored[d - 1]->get(x, y);
@@ -348,7 +339,7 @@ void FourierSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val
     {
         for(int x = 0; x != dimx; x++)
         {
-            for(uint32_t d = 1; d < degree; d++)
+            for(uint32_t d = 1; d < basisSize; d++)
             {
                 val[y * dimx + x] += coefficientsStoredTime[d - 1] * framesStored[d - 1]->get(x, y);
             }
@@ -377,7 +368,7 @@ void FourierSeriesEvaluator::frameAt_customOffset(const uint16_t z,
     {
         for(int x = 0; x != dimx; x++)
         {
-            for(uint32_t d = 1; d < degree; d++)
+            for(uint32_t d = 1; d < basisSize; d++)
             {
                 val[y * dimx + x] += coefficientsStoredTime[d - 1] * framesStored[d - 1]->get(x, y);
             }
@@ -403,7 +394,7 @@ void FourierSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val)
     {
         for(int x = 0; x != dimx; x++)
         {
-            for(uint32_t d = 1; d < degree; d++)
+            for(uint32_t d = 1; d < basisSize; d++)
             {
                 val[y * dimx + x]
                     += coefficientsIntervalStart[d - 1] * framesStored[d - 1]->get(x, y);
