@@ -201,6 +201,14 @@ int main(int argc, char* argv[])
         plt::plot(taxis, plotme);
         std::vector<double> taxis_scatter = concrse->nativeTimeDiscretization();
         std::vector<double> plotme_scatter = concrse->nativeValuesIn(a.ifx, a.ify, a.ifz);
+            if(a.water_value > 0)
+		{
+        for(uint32_t i = 0 ; i != plotme_scatter.size(); i++ )
+        {
+			plotme_scatter[i] = 1000*(plotme_scatter[i]-a.water_value)/a.water_value;		
+		}
+
+		}
         plt::plot(taxis_scatter, plotme_scatter);
         if(a.vizualize)
         {

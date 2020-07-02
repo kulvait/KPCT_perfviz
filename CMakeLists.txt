@@ -57,7 +57,7 @@ add_custom_target(formatWebkit
 ./formatWebkit
 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-SET(PERFVIZ_POLYNOMYAL_SOURCES src/perfviz-polynomial.cpp)
+SET(PERFVIZ_POLYNOMYAL_SOURCES src/perfviz-polynomial.cpp src/PerfusionVizualizationArguments.cpp)
 add_executable(perfvizPolynomial ${PERFVIZ_POLYNOMYAL_SOURCES})
 set_target_properties(
     perfvizPolynomial
@@ -71,7 +71,7 @@ target_link_libraries(perfvizPolynomial ${MKL_CORE_LIBRARY})
 target_link_libraries(perfvizPolynomial ${PYTHON_LIBRARIES})
 install (TARGETS perfvizPolynomial RUNTIME DESTINATION .)
 
-SET(PERFVIZ_FOURIER_SOURCES src/perfviz-fourier.cpp)
+SET(PERFVIZ_FOURIER_SOURCES src/perfviz-fourier.cpp src/PerfusionVizualizationArguments.cpp)
 add_executable(perfvizFourier ${PERFVIZ_FOURIER_SOURCES})
 set_target_properties(
     perfvizFourier 
@@ -85,7 +85,7 @@ target_link_libraries(perfvizFourier ${MKL_CORE_LIBRARY})
 target_link_libraries(perfvizFourier ${PYTHON_LIBRARIES})
 install (TARGETS perfvizFourier RUNTIME DESTINATION .)
 
-SET(PERFVIZ_FOURIER_KVA_SOURCES src/perfviz-fourier-kva.cpp)
+SET(PERFVIZ_FOURIER_KVA_SOURCES src/perfviz-fourier-kva.cpp src/PerfusionVizualizationArguments.cpp)
 add_executable(perfvizFourierKVA ${PERFVIZ_FOURIER_KVA_SOURCES})
 set_target_properties(
     perfvizFourierKVA 
@@ -99,7 +99,7 @@ target_link_libraries(perfvizFourierKVA ${MKL_CORE_LIBRARY})
 target_link_libraries(perfvizFourierKVA ${PYTHON_LIBRARIES})
 install (TARGETS perfvizFourierKVA RUNTIME DESTINATION .)
 
-SET(PERFVIZXXX_SOURCES src/perfviz-engineer.cpp)
+SET(PERFVIZXXX_SOURCES src/perfviz-engineer.cpp src/PerfusionVizualizationArguments.cpp)
 add_executable(perfviz_engineer ${PERFVIZXXX_SOURCES})
 set_target_properties(
     perfviz_engineer 
@@ -113,7 +113,7 @@ target_link_libraries(perfviz_engineer ${MKL_CORE_LIBRARY})
 target_link_libraries(perfviz_engineer ${PYTHON_LIBRARIES})
 install (TARGETS perfviz_engineer RUNTIME DESTINATION .)
 
-SET(PERFVIZSTATICREC_SOURCES src/perfviz-staticrec.cpp)
+SET(PERFVIZSTATICREC_SOURCES src/perfviz-staticrec.cpp src/PerfusionVizualizationArguments.cpp)
 add_executable(perfviz_staticrec ${PERFVIZSTATICREC_SOURCES})
 set_target_properties(
     perfviz_staticrec 
@@ -127,7 +127,7 @@ target_link_libraries(perfviz_staticrec ${MKL_CORE_LIBRARY})
 target_link_libraries(perfviz_staticrec ${PYTHON_LIBRARIES})
 install (TARGETS perfviz_staticrec RUNTIME DESTINATION .)
 
-SET(PERFVIZCTREC_SOURCES src/perfviz-ctrec.cpp)
+SET(PERFVIZCTREC_SOURCES src/perfviz-ctrec.cpp src/PerfusionVizualizationArguments.cpp)
 add_executable(perfviz_ctrec ${PERFVIZCTREC_SOURCES})
 set_target_properties(
     perfviz_ctrec 
@@ -141,7 +141,7 @@ target_link_libraries(perfviz_ctrec ${MKL_CORE_LIBRARY})
 target_link_libraries(perfviz_ctrec ${PYTHON_LIBRARIES})
 install (TARGETS perfviz_ctrec RUNTIME DESTINATION .)
 
-SET(PERFVIZCTVOL_SOURCES src/perfviz-ctvol.cpp)
+SET(PERFVIZCTVOL_SOURCES src/perfviz-ctvol.cpp src/PerfusionVizualizationArguments.cpp)
 add_executable(perfviz_ctvol ${PERFVIZCTVOL_SOURCES})
 set_target_properties(
     perfviz_ctvol 
@@ -155,7 +155,7 @@ target_link_libraries(perfviz_ctvol ${MKL_CORE_LIBRARY})
 target_link_libraries(perfviz_ctvol ${PYTHON_LIBRARIES})
 install (TARGETS perfviz_ctvol RUNTIME DESTINATION .)
 
-SET(PERFVIZCTKVA_SOURCES src/perfviz-ctkva.cpp)
+SET(PERFVIZCTKVA_SOURCES src/perfviz-ctkva.cpp src/PerfusionVizualizationArguments.cpp)
 add_executable(perfviz_ctkva ${PERFVIZCTKVA_SOURCES})
 set_target_properties(
     perfviz_ctkva 
@@ -169,7 +169,7 @@ target_link_libraries(perfviz_ctkva ${MKL_CORE_LIBRARY})
 target_link_libraries(perfviz_ctkva ${PYTHON_LIBRARIES})
 install (TARGETS perfviz_ctkva RUNTIME DESTINATION .)
 
-SET(CONTVIZ_SOURCES src/contviz.cpp)
+SET(CONTVIZ_SOURCES src/contviz.cpp src/PerfusionVizualizationArguments.cpp)
 add_executable(contviz ${CONTVIZ_SOURCES})
 set_target_properties(
     contviz 
