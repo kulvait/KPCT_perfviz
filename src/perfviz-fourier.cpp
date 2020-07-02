@@ -58,11 +58,11 @@ public:
 
 void Args::defineArguments()
 {
-    cliApp->add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")
+    cliApp->add_option("ifx", ifx, "Voxel x coordinate of the arthery input function.")
         ->required();
-    cliApp->add_option("ify", ify, "Pixel based y coordinate of arthery input function")
+    cliApp->add_option("ify", ify, "Voxel y coordinate of the arthery input function.")
         ->required();
-    cliApp->add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")
+    cliApp->add_option("ifz", ifz, "Voxel z coordinate of the arthery input function.")
         ->required();
     cliApp
         ->add_option("output_folder", outputFolder,
@@ -77,15 +77,13 @@ void Args::defineArguments()
         ->check(CLI::ExistingFile);
     addIntervalArgs();
     addVizualizationArgs();
+    CLI::Option_group* flow_og = cliApp->add_option_group("Program flow parameters");
+    addThreadingArgs(flow_og);
     cliApp->add_flag("--half-periodic-functions", halfPeriodicFunctions,
                      "Use Fourier basis and include half periodic functions.");
     cliApp->add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
     cliApp->add_option("--lambda-rel", lambdaRel,
                        "Tikhonov regularization parameter, defaults to 0.2.");
-    cliApp->add_flag("-v,--vizualize", vizualize, "Vizualize AIF and the basis.");
-    CLI::Option_group* flow_og = cliApp->add_option_group("Program flow parameters");
-    addThreadingArgs(flow_og);
-    flow_og->add_flag("--only-ttp", stopAfterTTP, "Compute only TTP.");
 }
 
 int Args::postParse()

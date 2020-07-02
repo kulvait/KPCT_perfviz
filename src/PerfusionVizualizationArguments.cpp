@@ -60,7 +60,7 @@ void PerfusionVizualizationArguments::addVizualizationArgs()
     addVizualizationGroup();
     og_vizualization->add_flag("-v,--vizualize", vizualize, "Vizualization.");
     og_vizualization->add_option("--water-value", water_value,
-                                 "If the AIF vizualization should be in HU, use this water_value.");
+                                 "If the AIF vizualization should be in HU, use this water_value. For C-Arm devices we usually set it to 0.027.");
     og_vizualization->add_flag("--show-basis", showBasis, "Show basis.");
     og_vizualization->add_flag("--show-aif", showAIF, "Show AIF.");
     og_vizualization->add_option("--store-aif", aifImageFile, "Store AIF into image file.");
