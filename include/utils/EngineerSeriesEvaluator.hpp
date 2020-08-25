@@ -124,7 +124,7 @@ private:
      */
     void frameAt_intervalStart(const uint16_t z, float* val);
 
-    uint32_t degree;
+    uint32_t coefficientCount;
     uint16_t samplingPointsCount;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefficientVolumes;
     uint16_t dimx, dimy, dimz;
@@ -158,10 +158,11 @@ EngineerSeriesEvaluator::EngineerSeriesEvaluator(std::string sampledBasisFunctio
                                                  float intervalEnd)
     : Attenuation4DEvaluatorI(intervalStart, intervalEnd)
 {
+    std::string ERR;
     io::DenFileInfo bfi(sampledBasisFunctions);
     samplingPointsCount = bfi.dimx();
-    degree = coefficientVolumeFiles.size();
-    if(degree < 1)
+    coefficientCount = coefficientVolumeFiles.size();
+    if(coefficientCount < 1)
     {
         io::throwerr("There must be at least one basis function to capture the time behavior but "
                      "there is 0.");
@@ -170,14 +171,17 @@ EngineerSeriesEvaluator::EngineerSeriesEvaluator(std::string sampledBasisFunctio
     dimx = di.dimx();
     dimy = di.dimy();
     dimz = di.dimz();
-    if(coefficientVolumeFiles.size() != bfi.dimz())
+    if(coefficientCount > bfi.dimz())
     {
-        io::throwerr("Number of files with coefficients have to be equal to basis functions, "
-                     "but is %d and degree=%d.",
-                     coefficientVolumeFiles.size(), degree);
+        ERR = io::xprintf("Number of files with coefficients have to be at most equal as the "
+                          "number of the basis functions encoded in file, but is %d and "
+                          "coefficientCount=%d.",
+                          coefficientVolumeFiles.size(), coefficientCount);
+        LOGE << ERR;
+        throw std::runtime_error(ERR);
     }
     std::shared_ptr<io::Frame2DReaderI<float>> pr;
-    for(std::size_t i = 0; i != degree; i++)
+    for(std::size_t i = 0; i != coefficientCount; i++)
     {
         pr = std::make_shared<io::DenFrame2DReader<float>>(coefficientVolumeFiles[i]);
         coefficientVolumes.push_back(pr);
@@ -189,15 +193,15 @@ EngineerSeriesEvaluator::EngineerSeriesEvaluator(std::string sampledBasisFunctio
             io::throwerr("There are incompatible coefficients!");
         }
     }
-    basisEvaluator = std::make_shared<util::StepFunction>(degree, sampledBasisFunctions,
+    basisEvaluator = std::make_shared<util::StepFunction>(sampledBasisFunctions, coefficientCount,
                                                           intervalStart, intervalEnd);
-    basisCoefficientsStored = new float[degree];
-    basisCoefficientsStart = new float[degree];
+    basisCoefficientsStored = new float[coefficientCount];
+    basisCoefficientsStart = new float[coefficientCount];
     basisEvaluator->valuesAt(intervalStart, basisCoefficientsStored);
     basisEvaluator->valuesAt(intervalStart, basisCoefficientsStart);
     storedTime = intervalStart;
     storedZ = 0;
-    for(uint32_t i = 0; i != degree; i++)
+    for(uint32_t i = 0; i != coefficientCount; i++)
     {
         framesStored.push_back(coefficientVolumes[i]->readFrame(storedZ));
     }
@@ -270,7 +274,7 @@ void EngineerSeriesEvaluator::updateFramesStored(const uint16_t z)
     if(storedZ != z)
     {
         framesStored.clear();
-        for(uint32_t i = 0; i != degree; i++)
+        for(uint32_t i = 0; i != coefficientCount; i++)
         {
             framesStored.push_back(coefficientVolumes[i]->readFrame(z));
         }
@@ -286,7 +290,7 @@ float EngineerSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
     float val = 0.0;
-    for(uint32_t i = 0; i != degree; i++)
+    for(uint32_t i = 0; i != coefficientCount; i++)
     {
         val += basisCoefficientsStart[i] * framesStored[i]->get(x, y);
     }
@@ -302,7 +306,7 @@ float EngineerSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
     updateEngineerValuesStored(t);
     updateFramesStored(z);
     float val = 0.0;
-    for(uint32_t i = 0; i != degree; i++)
+    for(uint32_t i = 0; i != coefficientCount; i++)
     {
         val += basisCoefficientsStored[i] * framesStored[i]->get(x, y);
     }
@@ -320,7 +324,7 @@ void EngineerSeriesEvaluator::frameAt(const uint16_t z, const float t, float* va
     {
         for(int x = 0; x != dimx; x++)
         {
-            for(uint32_t d = 0; d != degree; d++)
+            for(uint32_t d = 0; d != coefficientCount; d++)
             {
                 valuesAtStart[y * dimx + x]
                     += basisCoefficientsStart[d] * framesStored[d]->get(x, y);
@@ -332,7 +336,7 @@ void EngineerSeriesEvaluator::frameAt(const uint16_t z, const float t, float* va
     {
         for(int x = 0; x != dimx; x++)
         {
-            for(uint32_t d = 0; d != degree; d++)
+            for(uint32_t d = 0; d != coefficientCount; d++)
             {
                 val[y * dimx + x] += basisCoefficientsStored[d] * framesStored[d]->get(x, y);
             }
@@ -354,7 +358,7 @@ void EngineerSeriesEvaluator::frameAt_customOffset(const uint16_t z,
     {
         for(int x = 0; x != dimx; x++)
         {
-            for(uint32_t d = 0; d != degree; d++)
+            for(uint32_t d = 0; d != coefficientCount; d++)
             {
                 val[y * dimx + x] += basisCoefficientsStored[d] * framesStored[d]->get(x, y);
             }
@@ -373,7 +377,7 @@ void EngineerSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val
     {
         for(int x = 0; x != dimx; x++)
         {
-            for(uint32_t d = 0; d != degree; d++)
+            for(uint32_t d = 0; d != coefficientCount; d++)
             {
                 val[y * dimx + x] += basisCoefficientsStart[d] * framesStored[d]->get(x, y);
             }

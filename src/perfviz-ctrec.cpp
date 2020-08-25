@@ -213,7 +213,7 @@ int main(int argc, char* argv[])
         {
             for(uint32_t i = 0; i != plotme_scatter.size(); i++)
             {
-                plotme_scatter[i] = plotme_scatter[i] * 1000 / a.water_value;
+                plotme_scatter[i] = (plotme_scatter[i] - a.water_value) * 1000 / a.water_value;
             }
         }
         plt::named_plot("Original", taxis_scatter, plotme_scatter);

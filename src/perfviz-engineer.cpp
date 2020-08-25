@@ -187,7 +187,7 @@ int main(int argc, char* argv[])
 #if DEBUG // Ploting AIF
     if(a.vizualize)
     {
-        util::StepFunction b(a.fittedCoefficients.size(), a.sampledBasis, a.startTime, a.endTime);
+        util::StepFunction b(a.sampledBasis, a.fittedCoefficients.size(), a.startTime, a.endTime);
         b.plotFunctions();
         std::vector<double> taxis;
         float* _taxis = new float[a.granularity];
