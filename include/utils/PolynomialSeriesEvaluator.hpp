@@ -203,11 +203,11 @@ PolynomialSeriesEvaluator::PolynomialSeriesEvaluator(
     if(pt == polynomialType::Legendre)
     {
         polynomialBasisEvaluator = std::make_shared<util::LegendrePolynomialsExplicit>(
-            degree, intervalStart, intervalEnd, 1);
+            degree, intervalStart, intervalEnd, true,  1);
     } else
     {
         polynomialBasisEvaluator = std::make_shared<util::ChebyshevPolynomialsExplicit>(
-            degree, intervalStart, intervalEnd, 1);
+            degree, intervalStart, intervalEnd, true, 1);
     }
     legendreValuesStored = new float[degree];
     legendreValuesIntervalStart = new float[degree];

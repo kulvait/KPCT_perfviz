@@ -155,9 +155,9 @@ int main(int argc, char* argv[])
         pt = util::polynomialType::Legendre;
     }
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
-        = std::make_shared<util::PolynomialSeriesEvaluator>(ARG.fittedCoefficients.size() - 1,
-                                                            ARG.fittedCoefficients, ARG.startTime,
-                                                            ARG.endTime, !ARG.allowNegativeValues, pt);
+        = std::make_shared<util::PolynomialSeriesEvaluator>(
+            ARG.fittedCoefficients.size() - 1, ARG.fittedCoefficients, ARG.startTime, ARG.endTime,
+            !ARG.allowNegativeValues, pt);
     // Vizualization
     float* convolutionMatrix = new float[ARG.granularity * ARG.granularity];
     float* aif = new float[ARG.granularity];
@@ -169,11 +169,11 @@ int main(int argc, char* argv[])
         if(ARG.chebyshev)
         {
             b = std::make_shared<util::ChebyshevPolynomialsExplicit>(
-                ARG.fittedCoefficients.size() - 1, ARG.startTime, ARG.endTime, 1);
+                ARG.fittedCoefficients.size() - 1, ARG.startTime, ARG.endTime, true, 1);
         } else
         {
-            b = std::make_shared<util::LegendrePolynomialsExplicit>(ARG.fittedCoefficients.size() - 1,
-                                                                    ARG.startTime, ARG.endTime, 1);
+            b = std::make_shared<util::LegendrePolynomialsExplicit>(
+                ARG.fittedCoefficients.size() - 1, ARG.startTime, ARG.endTime, true, 1);
         }
         if(ARG.showBasis)
         {
