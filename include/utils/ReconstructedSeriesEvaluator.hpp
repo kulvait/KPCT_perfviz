@@ -77,6 +77,12 @@ public:
                       const uint32_t granularity,
                       float* aif) override;
 
+    void timeSeriesNativeNoOffsetNoTruncationIn(const uint16_t x,
+                                                const uint16_t y,
+                                                const uint16_t z,
+                                                const uint32_t granularity,
+                                                float* aif);
+
     /**Function to evaluate the value of attenuation at (x,y,z,t).
      *
      *@param[in] x Zero based x coordinate of the volume.
@@ -331,6 +337,23 @@ void ReconstructedSeriesEvaluator::updateStoredDiscretization(const uint32_t gra
 }
 
 bool ReconstructedSeriesEvaluator::isTimeDiscretizedEvenly() { return true; }
+
+void ReconstructedSeriesEvaluator::timeSeriesNativeNoOffsetNoTruncationIn(
+    const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)
+{
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    updateStoredDiscretization(granularity);
+    updateStoredVals(z);
+    fillBreakpointsY(x, y);
+    fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
+    // See
+    // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
+    fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer);
+    for(uint32_t i = 0; i != granularity; i++)
+    {
+        val[i] = float(storedInterpolationBuffer[i]);
+    }
+}
 
 void ReconstructedSeriesEvaluator::timeSeriesIn(
     const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)

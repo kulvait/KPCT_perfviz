@@ -49,8 +49,8 @@ include_directories(${CMAKE_SOURCE_DIR}/submodules/CTMAL/include)
 include_directories(${CMAKE_SOURCE_DIR}/submodules/matplotlib-cpp)
 
 #Python for matplotlib
-find_package(PythonLibs 2.7)
-include_directories(${PYTHON_INCLUDE_DIRS})
+find_package (Python3 COMPONENTS Development)
+include_directories(${Python3_INCLUDE_DIRS})
 
 
 add_custom_target(formatWebkit
@@ -68,7 +68,7 @@ set_target_properties(
 target_link_libraries(perfvizPolynomial ctiol)
 target_link_libraries(perfvizPolynomial ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfvizPolynomial ${MKL_CORE_LIBRARY})
-target_link_libraries(perfvizPolynomial ${PYTHON_LIBRARIES})
+target_link_libraries(perfvizPolynomial ${Python3_LIBRARIES})
 install (TARGETS perfvizPolynomial RUNTIME DESTINATION .)
 
 SET(PERFVIZ_FOURIER_SOURCES src/perfviz-fourier.cpp src/PerfusionVizualizationArguments.cpp)
@@ -82,7 +82,7 @@ set_target_properties(
 target_link_libraries(perfvizFourier ctiol)
 target_link_libraries (perfvizFourier ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfvizFourier ${MKL_CORE_LIBRARY})
-target_link_libraries(perfvizFourier ${PYTHON_LIBRARIES})
+target_link_libraries(perfvizFourier ${Python3_LIBRARIES})
 install (TARGETS perfvizFourier RUNTIME DESTINATION .)
 
 SET(PERFVIZ_FOURIER_KVA_SOURCES src/perfviz-fourier-kva.cpp src/PerfusionVizualizationArguments.cpp)
@@ -96,7 +96,7 @@ set_target_properties(
 target_link_libraries(perfvizFourierKVA ctiol)
 target_link_libraries (perfvizFourierKVA ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfvizFourierKVA ${MKL_CORE_LIBRARY})
-target_link_libraries(perfvizFourierKVA ${PYTHON_LIBRARIES})
+target_link_libraries(perfvizFourierKVA ${Python3_LIBRARIES})
 install (TARGETS perfvizFourierKVA RUNTIME DESTINATION .)
 
 SET(PERFVIZXXX_SOURCES src/perfviz-engineer.cpp src/PerfusionVizualizationArguments.cpp)
@@ -110,7 +110,7 @@ set_target_properties(
 target_link_libraries(perfviz_engineer ctiol)
 target_link_libraries (perfviz_engineer ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfviz_engineer ${MKL_CORE_LIBRARY})
-target_link_libraries(perfviz_engineer ${PYTHON_LIBRARIES})
+target_link_libraries(perfviz_engineer ${Python3_LIBRARIES})
 install (TARGETS perfviz_engineer RUNTIME DESTINATION .)
 
 SET(PERFVIZSTATICREC_SOURCES src/perfviz-staticrec.cpp src/PerfusionVizualizationArguments.cpp)
@@ -124,7 +124,7 @@ set_target_properties(
 target_link_libraries(perfviz_staticrec ctiol)
 target_link_libraries (perfviz_staticrec ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfviz_staticrec ${MKL_CORE_LIBRARY})
-target_link_libraries(perfviz_staticrec ${PYTHON_LIBRARIES})
+target_link_libraries(perfviz_staticrec ${Python3_LIBRARIES})
 install (TARGETS perfviz_staticrec RUNTIME DESTINATION .)
 
 SET(PERFVIZCTREC_SOURCES src/perfviz-ctrec.cpp src/PerfusionVizualizationArguments.cpp)
@@ -138,7 +138,7 @@ set_target_properties(
 target_link_libraries(perfviz_ctrec ctiol)
 target_link_libraries (perfviz_ctrec ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfviz_ctrec ${MKL_CORE_LIBRARY})
-target_link_libraries(perfviz_ctrec ${PYTHON_LIBRARIES})
+target_link_libraries(perfviz_ctrec ${Python3_LIBRARIES})
 install (TARGETS perfviz_ctrec RUNTIME DESTINATION .)
 
 SET(PERFVIZCTVOL_SOURCES src/perfviz-ctvol.cpp src/PerfusionVizualizationArguments.cpp)
@@ -152,7 +152,7 @@ set_target_properties(
 target_link_libraries(perfviz_ctvol ctiol)
 target_link_libraries (perfviz_ctvol ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfviz_ctvol ${MKL_CORE_LIBRARY})
-target_link_libraries(perfviz_ctvol ${PYTHON_LIBRARIES})
+target_link_libraries(perfviz_ctvol ${Python3_LIBRARIES})
 install (TARGETS perfviz_ctvol RUNTIME DESTINATION .)
 
 SET(PERFVIZCTKVA_SOURCES src/perfviz-ctkva.cpp src/PerfusionVizualizationArguments.cpp)
@@ -166,7 +166,7 @@ set_target_properties(
 target_link_libraries(perfviz_ctkva ctiol)
 target_link_libraries (perfviz_ctkva ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfviz_ctkva ${MKL_CORE_LIBRARY})
-target_link_libraries(perfviz_ctkva ${PYTHON_LIBRARIES})
+target_link_libraries(perfviz_ctkva ${Python3_LIBRARIES})
 install (TARGETS perfviz_ctkva RUNTIME DESTINATION .)
 
 SET(CONTVIZ_SOURCES src/contviz.cpp src/PerfusionVizualizationArguments.cpp)
@@ -180,7 +180,7 @@ set_target_properties(
 target_link_libraries(contviz ctiol)
 target_link_libraries (contviz ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(contviz ${MKL_CORE_LIBRARY})
-target_link_libraries(contviz ${PYTHON_LIBRARIES})
+target_link_libraries(contviz ${Python3_LIBRARIES})
 install (TARGETS contviz RUNTIME DESTINATION .)
 
 #Documentation target
@@ -206,7 +206,7 @@ if (DOXYGEN_FOUND)
         COMMENT "Generating PDF manual"
         VERBATIM )
 
-	add_dependencies(doxygen doxygen_doc)
+add_dependencies(doxygen doxygen_doc)
 
 else (DOXYGEN_FOUND)
   message("Doxygen need to be installed to generate the doxygen documentation")

@@ -61,6 +61,7 @@ struct Arguments
     bool vizualize = false;
     bool onlyaif = false;
     float water_value = -0.027;
+    bool allowNegativeValues = false;
     /**
      * @brief File to store AIF.
      */
@@ -100,7 +101,8 @@ int Arguments::parseArguments(int argc, char* argv[])
         ->check(CLI::Range(0.0, 1000000.0));
     app.add_flag("-v,--vizualize", vizualize, "Vizualize AIF.");
     app.add_option("--water-value", water_value,
-                   "If the AIF vizualization should be in HU, use this water_value.");
+                   "If the AIF vizualization should be in HU, use this water_value, default is negative value to show normal values, reasonable value 0.027.");
+    app.add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
     app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
     app.add_flag("--only-aif", onlyaif, "Vizualize only aif.");
     app.add_flag("--only-ttp", onlyttp, "Compute only ttp.");
@@ -177,39 +179,78 @@ int main(int argc, char* argv[])
     // Vizualization
     float* convolutionMatrix = new float[a.granularity * a.granularity];
     float* aif = new float[a.granularity];
-    concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
+    std::shared_ptr<util::ReconstructedSeriesEvaluator> _concentration
+        = std::dynamic_pointer_cast<util::ReconstructedSeriesEvaluator>(concentration);
+    if(a.allowNegativeValues)
+    {
+        _concentration->timeSeriesNativeNoOffsetNoTruncationIn(a.ifx, a.ify, a.ifz, a.granularity,
+                                                               aif);
+        for(uint32_t i = 0; i != a.granularity; i++)
+        {
+            aif[i] = aif[i] - aif[0];
+        }
+    } else
+    {
+        concentration->timeSeriesIn(a.ifx, a.ify, a.ifz, a.granularity, aif);
+    }
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
     if(a.vizualize || !a.storeAIF.empty())
     {
-        std::vector<double> taxis;
-        float* _taxis = new float[a.granularity];
+        float* _taxis = new float[a.granularity]();
+        float* aif_native = new float[a.granularity]();
         concentration->timeDiscretization(a.granularity, _taxis);
+        _concentration->timeSeriesNativeNoOffsetNoTruncationIn(a.ifx, a.ify, a.ifz, a.granularity,
+                                                               aif_native);
+        std::vector<double> taxis;
         std::vector<double> plotme;
+        std::vector<double> taxis_scatter = _concentration->nativeTimeDiscretization();
+        std::vector<double> plotme_scatter = _concentration->nativeValuesIn(a.ifx, a.ify, a.ifz);
+        if(a.water_value > 0) // Put it to Hounsfield units
+        {
+            for(uint32_t i = 0; i != a.granularity; i++)
+            {
+                plotme.push_back(1000 * (aif_native[i] - a.water_value) / a.water_value);
+            }
+            for(uint32_t i = 0; i != plotme_scatter.size(); i++)
+            {
+                plotme_scatter[i] = 1000 * (plotme_scatter[i] - a.water_value) / a.water_value;
+            }
+        } else
+        {
+            for(uint32_t i = 0; i != a.granularity; i++)
+            {
+                plotme.push_back(aif_native[i]);
+            }
+        }
+        if(!a.allowNegativeValues) // Truncate but preserve initial attenuation
+        {
+            for(uint32_t i = 0; i != a.granularity; i++)
+            {
+                plotme[i] = std::max(plotme[0], plotme[i]);
+            }
+        }
         for(uint32_t i = 0; i != a.granularity; i++)
         {
-            if(a.water_value > 0)
-            {
-                plotme.push_back(aif[i] * 1000 / a.water_value);
-            } else
-            {
-                plotme.push_back(aif[i]);
-            }
-            taxis.push_back(_taxis[i]);
+            taxis.push_back(_taxis[i] / 1000.0);
         }
-        std::shared_ptr<util::ReconstructedSeriesEvaluator> concrse
-            = std::dynamic_pointer_cast<util::ReconstructedSeriesEvaluator>(concentration);
-        plt::plot(taxis, plotme);
-        std::vector<double> taxis_scatter = concrse->nativeTimeDiscretization();
-        std::vector<double> plotme_scatter = concrse->nativeValuesIn(a.ifx, a.ify, a.ifz);
-            if(a.water_value > 0)
-		{
-        for(uint32_t i = 0 ; i != plotme_scatter.size(); i++ )
+        for(uint32_t i = 0; i != taxis_scatter.size(); i++)
         {
-			plotme_scatter[i] = 1000*(plotme_scatter[i]-a.water_value)/a.water_value;		
-		}
-
-		}
-        plt::plot(taxis_scatter, plotme_scatter);
+            taxis_scatter[i] = taxis_scatter[i] / 1000;
+        }
+        plt::title(io::xprintf("Time attenuation curve x=%d, y=%d, z=%d.", a.ifx, a.ify, a.ifz));
+        plt::named_plot("Spline fit approximation", taxis, plotme);
+        std::map<std::string, std::string> pltargs;
+        pltargs.insert(std::pair<std::string, std::string>("Color", "Orange"));
+        plt::scatter(taxis_scatter, plotme_scatter, 90.0, pltargs);
+        plt::xlabel("Time [s]");
+        if(a.water_value > 0)
+        {
+            plt::ylabel("Attenuation [HU]");
+        } else
+        {
+            plt::ylabel("Attenuation");
+        }
+        plt::legend();
         if(a.vizualize)
         {
             plt::show();
@@ -219,6 +260,7 @@ int main(int argc, char* argv[])
             plt::save(a.storeAIF);
         }
         delete[] _taxis;
+        delete[] aif_native;
     }
     if(a.onlyaif)
     {

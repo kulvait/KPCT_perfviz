@@ -125,6 +125,22 @@ public:
      */
     std::vector<double> nativeValuesIn(const uint16_t x, const uint16_t y, const uint16_t z);
 
+    /**
+     * @brief Native attenuation values
+     *
+     *@param[in] x Zero based x coordinate of the volume.
+     *@param[in] y Zero based y coordinate of the volume.
+     *@param[in] z Zero based z coordinate of the volume.
+     *@param[in] granularity Number of time points to fill in aif array with.
+     *@param[out] val Prealocated array to put the values at particular times of the discretization
+     *of the size granularity.
+     */
+    void timeSeriesNativeNoOffsetNoTruncationIn(const uint16_t x,
+                                                const uint16_t y,
+                                                const uint16_t z,
+                                                const uint32_t granularity,
+                                                float* val);
+
 private:
     /**Function to obtain time discretization as double array.
      *
@@ -221,7 +237,8 @@ CTEvaluator::CTEvaluator(std::vector<std::string>& attenuationVolumeFiles,
                          bool allowExtrapolation,
                          bool zeroStartOffset,
                          float minimumAttenuationValue)
-    :Attenuation4DEvaluatorI(0.0,1.0), allowExtrapolation(allowExtrapolation)
+    : Attenuation4DEvaluatorI(0.0, 1.0)
+    , allowExtrapolation(allowExtrapolation)
     , zeroStartOffset(zeroStartOffset)
     , minimumAttenuationValue(minimumAttenuationValue)
 {
@@ -462,6 +479,25 @@ void CTEvaluator::timeSeriesIn(
         //                    storedTimeDiscretization[i], storedInterpolationBuffer[i]);
         val[i]
             = std::max(minimumAttenuationValue, float(storedInterpolationBuffer[i] - startOffset));
+    }
+}
+
+void CTEvaluator::timeSeriesNativeNoOffsetNoTruncationIn(
+    const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)
+{
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    updateStoredDiscretization(granularity);
+    updateStoredVals(z);
+    fillBreakpointsY(x, y);
+    fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
+    // See
+    // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
+    fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer);
+    for(uint32_t i = 0; i != granularity; i++)
+    {
+        // LOGD << io::xprintf("The granularity %d that corresponds to t=%f the value is %f.", i,
+        //                    storedTimeDiscretization[i], storedInterpolationBuffer[i]);
+        val[i] = storedInterpolationBuffer[i];
     }
 }
 
