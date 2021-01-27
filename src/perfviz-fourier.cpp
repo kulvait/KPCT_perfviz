@@ -192,6 +192,15 @@ int main(int argc, char* argv[])
                     ARG.staticReconstructionDir, ARG.sweepCount, ARG.sweepTime, ARG.sweepOffset);
             taxis_scatter = _concentration->nativeTimeDiscretization();
             plotme_scatter = _concentration->nativeValuesIn(ARG.ifx, ARG.ify, ARG.ifz);
+            if(ARG.water_value > 0)
+            {
+                for(uint32_t i = 0; i != plotme_scatter.size(); i++)
+                {
+                    float v = plotme_scatter[i];
+                    float hu = 1000 * (v / ARG.water_value - 1.0);
+                    plotme_scatter[i] = hu;
+                }
+            }
         }
         std::vector<double> taxis;
         float* _taxis = new float[ARG.granularity];
