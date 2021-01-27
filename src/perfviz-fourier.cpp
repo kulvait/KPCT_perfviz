@@ -199,6 +199,7 @@ int main(int argc, char* argv[])
                     float v = plotme_scatter[i];
                     float hu = 1000 * (v / ARG.water_value - 1.0);
                     plotme_scatter[i] = hu;
+                    taxis_scatter[i] = taxis_scatter[i] / 1000;
                 }
             }
         }
@@ -217,7 +218,7 @@ int main(int argc, char* argv[])
             {
                 plotme.push_back(v);
             }
-            taxis.push_back(_taxis[i]);
+            taxis.push_back(_taxis[i] / 1000);
         }
         plt::plot(taxis, plotme);
         if(ARG.staticReconstructionDir != "")

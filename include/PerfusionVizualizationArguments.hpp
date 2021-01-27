@@ -17,7 +17,7 @@ public:
      * Data are from the experiments. Controls interval [ms].
      */
     float startTime = 4145;
-    float endTime = 43699;
+    float endTime = 47844;
     float sweepTime = 5316;
     float sweepOffset = 2072.5;
     uint32_t sweepCount = 10;
