@@ -87,6 +87,15 @@ public:
      */
     void frameTimeSeries(const uint16_t z, const uint32_t granularity, float* val) override;
 
+    /**Function to evaluate the value of Legendre polynomial without constant at given point
+     *(x,y,z,intervalStart).
+     *
+     *@param[in] x Zero based x coordinate of the volume.
+     *@param[in] y Zero based y coordinate of the volume.
+     *@param[in] z Zero based z coordinate of the volume.
+     */
+    float valueAt_intervalStart(const uint16_t x, const uint16_t y, const uint16_t z);
+
 private:
     /**Function to evaluate the value of Legendre polynomial without constant at given point
      *(x,y,z,t).
@@ -107,15 +116,6 @@ private:
      *@param[out] val Prealocated array to put the values at particular times.
      */
     void frameAt_customOffset(const uint16_t z, const float t, float* offset, float* val);
-
-    /**Function to evaluate the value of Legendre polynomial without constant at given point
-     *(x,y,z,intervalStart).
-     *
-     *@param[in] x Zero based x coordinate of the volume.
-     *@param[in] y Zero based y coordinate of the volume.
-     *@param[in] z Zero based z coordinate of the volume.
-     */
-    float valueAt_intervalStart(const uint16_t x, const uint16_t y, const uint16_t z);
 
     /**Function to evaluate the value of Legendre polynomial without constant at given frame
      *(z,t).
@@ -193,12 +193,14 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(std::vector<std::string> coeffici
             throw std::runtime_error(ERR);
         }
     }
-    fourierEvaluatorWithoutConstant = std::make_shared<util::FourierSeries>(basisSize, intervalStart, intervalEnd,
-                                                             1, halfPeriodicFunctions);
+    fourierEvaluatorWithoutConstant = std::make_shared<util::FourierSeries>(
+        basisSize, intervalStart, intervalEnd, 1, halfPeriodicFunctions);
     fourierCoefficientsAtStoredTimeWithoutConstant = new float[basisSize - 1];
     fourierCoefficientsAtIntervalStartWithoutConstant = new float[basisSize - 1];
-    fourierEvaluatorWithoutConstant->valuesAt(intervalStart, fourierCoefficientsAtStoredTimeWithoutConstant);
-    fourierEvaluatorWithoutConstant->valuesAt(intervalStart, fourierCoefficientsAtIntervalStartWithoutConstant);
+    fourierEvaluatorWithoutConstant->valuesAt(intervalStart,
+                                              fourierCoefficientsAtStoredTimeWithoutConstant);
+    fourierEvaluatorWithoutConstant->valuesAt(intervalStart,
+                                              fourierCoefficientsAtIntervalStartWithoutConstant);
     storedTime = intervalStart;
     storedZ = 0;
     for(uint32_t i = 0; i < basisSize; i++)
@@ -266,7 +268,8 @@ void FourierSeriesEvaluator::updateCoefficientsStored(const float t)
 {
     if(storedTime != t)
     {
-        fourierEvaluatorWithoutConstant->valuesAt(t, fourierCoefficientsAtStoredTimeWithoutConstant);
+        fourierEvaluatorWithoutConstant->valuesAt(t,
+                                                  fourierCoefficientsAtStoredTimeWithoutConstant);
         storedTime = t;
     }
 }
@@ -294,7 +297,8 @@ float FourierSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
     float val = 0.0;
     for(uint32_t i = 1; i < basisSize; i++)
     {
-        val += fourierCoefficientsAtIntervalStartWithoutConstant[i - 1] * framesStored[i]->get(x, y);
+        val += fourierCoefficientsAtIntervalStartWithoutConstant[i - 1]
+            * framesStored[i]->get(x, y);
     }
     return val;
 }
@@ -329,7 +333,8 @@ void FourierSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val
             for(uint32_t d = 1; d < basisSize; d++)
             {
                 valuesAtStart[y * dimx + x]
-                    += fourierCoefficientsAtIntervalStartWithoutConstant[d - 1] * framesStored[d]->get(x, y);
+                    += fourierCoefficientsAtIntervalStartWithoutConstant[d - 1]
+                    * framesStored[d]->get(x, y);
             }
         }
     }
@@ -340,7 +345,8 @@ void FourierSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val
         {
             for(uint32_t d = 1; d < basisSize; d++)
             {
-                val[y * dimx + x] += fourierCoefficientsAtStoredTimeWithoutConstant[d - 1] * framesStored[d]->get(x, y);
+                val[y * dimx + x] += fourierCoefficientsAtStoredTimeWithoutConstant[d - 1]
+                    * framesStored[d]->get(x, y);
             }
             if(negativeAsZero)
             {
@@ -369,7 +375,8 @@ void FourierSeriesEvaluator::frameAt_customOffset(const uint16_t z,
         {
             for(uint32_t d = 1; d < basisSize; d++)
             {
-                val[y * dimx + x] += fourierCoefficientsAtStoredTimeWithoutConstant[d - 1] * framesStored[d]->get(x, y);
+                val[y * dimx + x] += fourierCoefficientsAtStoredTimeWithoutConstant[d - 1]
+                    * framesStored[d]->get(x, y);
             }
             if(negativeAsZero)
             {
@@ -395,8 +402,8 @@ void FourierSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val)
         {
             for(uint32_t d = 1; d < basisSize; d++)
             {
-                val[y * dimx + x]
-                    += fourierCoefficientsAtIntervalStartWithoutConstant[d - 1] * framesStored[d]->get(x, y);
+                val[y * dimx + x] += fourierCoefficientsAtIntervalStartWithoutConstant[d - 1]
+                    * framesStored[d]->get(x, y);
             }
         }
     }

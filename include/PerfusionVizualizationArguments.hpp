@@ -18,6 +18,9 @@ public:
      */
     float startTime = 4145;
     float endTime = 43699;
+    float sweepTime = 5316;
+    float sweepOffset = 2072.5;
+    uint32_t sweepCount = 10;
     /// Granularity of the time is number of time points analyzed by i.e. convolution
     uint32_t granularity = 100;
     // Length of one second in the units of the domain
@@ -32,6 +35,14 @@ public:
     /*Default negative to show raw values.
      */
     float water_value = -0.027;
+    std::string staticReconstructionDir = "";
+    // For visualization of static reconstruction points
+
+    // Settings
+    CLI::Option_group* og_settings = nullptr;
+    // Time in seconds to define interval [0, cbf_time) for maximum computation for CBF
+    float cbf_time = 3.0f;
+    float lambda_rel = 0.2;
     /**
      * @brief File to store AIF.
      */
@@ -39,10 +50,11 @@ public:
     std::string basisImageFile = "";
 
 protected:
-
     void addIntervalGroup();
-    void addIntervalArgs();
+    void addIntervalArgs(bool sweepParameters);
+    void addSettingsGroup();
+    void addSettingsArgs();
     void addVizualizationGroup();
-    void addVizualizationArgs();
+    void addVizualizationArgs(bool staticReconstructionVisualization);
 };
 } // namespace CTL::util

@@ -14,10 +14,12 @@
 #include "PROG/Program.hpp"
 #include "PerfusionVizualizationArguments.hpp"
 #include "SVD/TikhonovInverse.hpp"
+#include "gitversion/version.h"
 #include "matplotlibcpp.h"
 #include "stringFormatter.h"
 #include "utils/Attenuation4DEvaluatorI.hpp"
 #include "utils/FourierSeriesEvaluator.hpp"
+#include "utils/ReconstructedSeriesEvaluator.hpp"
 #include "utils/TimeSeriesDiscretizer.hpp"
 
 namespace plt = matplotlibcpp;
@@ -51,19 +53,13 @@ public:
     bool halfPeriodicFunctions = false;
 
     bool allowNegativeValues = false;
-
-    // Tikhonov regularization parameter
-    float lambdaRel = 0.2;
 };
 
 void Args::defineArguments()
 {
-    cliApp->add_option("ifx", ifx, "Voxel x coordinate of the arthery input function.")
-        ->required();
-    cliApp->add_option("ify", ify, "Voxel y coordinate of the arthery input function.")
-        ->required();
-    cliApp->add_option("ifz", ifz, "Voxel z coordinate of the arthery input function.")
-        ->required();
+    cliApp->add_option("ifx", ifx, "Voxel x coordinate of the arthery input function.")->required();
+    cliApp->add_option("ify", ify, "Voxel y coordinate of the arthery input function.")->required();
+    cliApp->add_option("ifz", ifz, "Voxel z coordinate of the arthery input function.")->required();
     cliApp
         ->add_option("output_folder", outputFolder,
                      "Folder to which output data after the linear regression, specify - for no "
@@ -75,15 +71,14 @@ void Args::defineArguments()
                      "coeficient that corresponds to the constant.")
         ->required()
         ->check(CLI::ExistingFile);
-    addIntervalArgs();
-    addVizualizationArgs();
+    addIntervalArgs(true);
+    addVizualizationArgs(true);
+    addSettingsArgs();
     CLI::Option_group* flow_og = cliApp->add_option_group("Program flow parameters");
     addThreadingArgs(flow_og);
     cliApp->add_flag("--half-periodic-functions", halfPeriodicFunctions,
                      "Use Fourier basis and include half periodic functions.");
     cliApp->add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
-    cliApp->add_option("--lambda-rel", lambdaRel,
-                       "Tikhonov regularization parameter, defaults to 0.2.");
 }
 
 int Args::postParse()
@@ -127,7 +122,15 @@ int main(int argc, char* argv[])
 {
     Program PRG(argc, argv);
     // Argument parsing
-    Args ARG(argc, argv, "Visualization of perfusion parameters based on Fourier coefficients.");
+    std::string prgInfo = "Visualization of perfusion parameters based on Fourier coefficients.";
+    if(version::MODIFIED_SINCE_COMMIT == true)
+    {
+        prgInfo = io::xprintf("%s Dirty commit %s", prgInfo.c_str(), version::GIT_COMMIT_ID);
+    } else
+    {
+        prgInfo = io::xprintf("%s Git commit %s", prgInfo.c_str(), version::GIT_COMMIT_ID);
+    }
+    Args ARG(argc, argv, prgInfo);
     int parseResult = ARG.parse();
     if(parseResult > 0)
     {
@@ -143,13 +146,17 @@ int main(int argc, char* argv[])
     dimy = di.dimy();
     dimz = di.dimz();
     LOGI << io::xprintf("Start time is %f and end time is %f", ARG.startTime, ARG.endTime);
-    std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
+    std::shared_ptr<util::FourierSeriesEvaluator> concentration
         = std::make_shared<util::FourierSeriesEvaluator>(ARG.fittedCoefficients, ARG.startTime,
                                                          ARG.endTime, !ARG.allowNegativeValues,
                                                          ARG.halfPeriodicFunctions);
     // Vizualization
     float* convolutionMatrix = new float[ARG.granularity * ARG.granularity];
     float* aif = new float[ARG.granularity];
+    auto offsetReader = std::make_shared<io::DenFrame2DReader<float>>(ARG.fittedCoefficients[0]);
+    auto aifframe = offsetReader->readFrame(ARG.ifz);
+    float aifofset = aifframe->get(ARG.ifx, ARG.ify)
+        + concentration->valueAt_intervalStart(ARG.ifx, ARG.ify, ARG.ifz);
     concentration->timeSeriesIn(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity, aif);
     utils::TikhonovInverse::precomputeConvolutionMatrix(ARG.granularity, aif, convolutionMatrix);
     if(ARG.showBasis || !ARG.basisImageFile.empty())
@@ -166,22 +173,50 @@ int main(int argc, char* argv[])
     }
     if(ARG.showAIF || !ARG.aifImageFile.empty())
     {
+        plt::title(io::xprintf("Time attenuation curve, TST Fourier, x=%d, y=%d, z=%d.", ARG.ifx,
+                               ARG.ify, ARG.ifz));
+        plt::xlabel("Time [s]");
+        if(ARG.water_value > 0)
+        {
+            plt::ylabel("Attenuation [HU]");
+        } else
+        {
+            plt::ylabel("Attenuation");
+        }
+        std::vector<double> taxis_scatter;
+        std::vector<double> plotme_scatter;
+        if(ARG.staticReconstructionDir != "")
+        {
+            std::shared_ptr<util::ReconstructedSeriesEvaluator> _concentration
+                = std::make_shared<util::ReconstructedSeriesEvaluator>(
+                    ARG.staticReconstructionDir, ARG.sweepCount, ARG.sweepTime, ARG.sweepOffset);
+            taxis_scatter = _concentration->nativeTimeDiscretization();
+            plotme_scatter = _concentration->nativeValuesIn(ARG.ifx, ARG.ify, ARG.ifz);
+        }
         std::vector<double> taxis;
         float* _taxis = new float[ARG.granularity];
         concentration->timeDiscretization(ARG.granularity, _taxis);
         std::vector<double> plotme;
         for(uint32_t i = 0; i != ARG.granularity; i++)
         {
+            float v = aif[i] + aifofset;
             if(ARG.water_value > 0)
             {
-                plotme.push_back(aif[i] * 1000 / ARG.water_value);
+                float hu = 1000 * (v / ARG.water_value - 1.0);
+                plotme.push_back(hu);
             } else
             {
-                plotme.push_back(aif[i]);
+                plotme.push_back(v);
             }
             taxis.push_back(_taxis[i]);
         }
         plt::plot(taxis, plotme);
+        if(ARG.staticReconstructionDir != "")
+        {
+            std::map<std::string, std::string> pltargs;
+            pltargs.insert(std::pair<std::string, std::string>("Color", "Orange"));
+            plt::scatter(taxis_scatter, plotme_scatter, 90.0, pltargs);
+        }
         if(ARG.showAIF)
         {
             plt::show();
@@ -198,7 +233,7 @@ int main(int argc, char* argv[])
     }
     bool truncatedInstead = false;
     //    ARG.lambdaRel = 0.0;
-    utils::TikhonovInverse ti(ARG.lambdaRel, truncatedInstead);
+    utils::TikhonovInverse ti(ARG.lambda_rel, truncatedInstead);
     ti.computePseudoinverse(convolutionMatrix, ARG.granularity);
     // Test what is the projection of convolutionMatrix to the last element of aif
 
@@ -226,7 +261,9 @@ int main(int argc, char* argv[])
         std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w
             = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
                 io::xprintf("%s/MTT.den", ARG.outputFolder.c_str()), dimx, dimy, dimz);
-        tsd.computePerfusionParameters(ARG.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
+        LOGI << io::xprintf("CBF time is set as %f.", ARG.cbf_time);
+        tsd.computePerfusionParameters(ARG.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w,
+                                       ARG.cbf_time);
     }
     delete[] convolutionMatrix;
     delete[] aif;

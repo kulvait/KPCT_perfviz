@@ -19,3 +19,6 @@
 [submodule "submodules/FTPL"]
 	path = submodules/FTPL
 	url = https://github.com/kulvait/FTPL.git
+[submodule "submodules/gitversion"]
+	path = submodules/gitversion
+	url = https://github.com/smessmer/gitversion

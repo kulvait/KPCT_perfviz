@@ -62,6 +62,7 @@ struct Arguments
     bool onlyaif = false;
     bool allowNegativeValues = false;
     float water_value = -0.027;
+    float cbfTime = 60.0;
     /**
      * @brief File to store AIF.
      */
@@ -80,16 +81,25 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "Granularity of the time is number of time points to which time interval is "
                    "discretized. Defaults to 100.")
         ->check(CLI::Range(1, 1000000));
-    app.add_option("-c,--sec-length", secLength,
-                   "Length of one second in the units of the domain. Defaults to 1000.")
-        ->check(CLI::Range(0.0, 1000000.0));
+    std::string optstr = io::xprintf(
+        "Length of one second in the units of the domain. Defaults to %0.2f.", secLength);
+    app.add_option("-c,--sec-length", secLength, optstr)->check(CLI::Range(0.0, 1000000.0));
     app.add_flag("-v,--vizualize", vizualize, "Vizualize AIF and the basis.");
     app.add_option("--store-aif", storeAIF, "Store AIF into image file.");
     app.add_flag("--only-aif", onlyaif, "Compute only AIF.");
     app.add_flag("--only-ttp", onlyttp, "Compute only TTP.");
-    app.add_flag("--allow-negative-values", allowNegativeValues, "AIF is usually truncated by 0 and does not allow negative values.");
+    app.add_flag("--allow-negative-values", allowNegativeValues,
+                 "AIF is usually truncated by 0 and does not allow negative values.");
     app.add_option("--water-value", water_value,
                    "If the AIF vizualization should be in HU, use this water_value.");
+
+    optstr
+        = io::xprintf("The CBF value should be value at the t=0 of the deconvolution function. For "
+                      "improved stability we put a maximum of this value over the interval [0.0, "
+                      "cbfTime] in seconds. Defaults to %0.2fs.",
+                      cbfTime);
+    app.add_option("--cbf-time", cbfTime,
+                   optstr);
     app.add_option("ifx", ifx, "Pixel based x coordinate of arthery input function")->required();
     app.add_option("ify", ify, "Pixel based y coordinate of arthery input function")->required();
     app.add_option("ifz", ifz, "Pixel based z coordinate of arthery input function")->required();
@@ -237,6 +247,12 @@ int main(int argc, char* argv[])
         {
             taxis.push_back(_taxis[i]);
         }
+        // See
+        // https://stackoverflow.com/questions/4931376/generating-matplotlib-graphs-without-a-running-x-server
+        if(!a.vizualize)
+        {
+            plt::backend("Agg");
+        }
         plt::title(io::xprintf("Time attenuation curve x=%d, y=%d, z=%d.", a.ifx, a.ify, a.ifz));
         plt::named_plot("Spline fit approximation", taxis, plotme);
         std::map<std::string, std::string> pltargs;
@@ -269,6 +285,7 @@ int main(int argc, char* argv[])
     bool truncatedInstead = false;
     float lambdaRel = 0.2;
     // lambdaRel = 0.075;
+    //lambdaRel = 0.15;
     utils::TikhonovInverse ti(lambdaRel, truncatedInstead);
     ti.computePseudoinverse(convolutionMatrix, a.granularity);
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> ttp_w
@@ -322,7 +339,8 @@ int main(int argc, char* argv[])
     if(!a.onlyttp)
     {
         LOGD << "CBV, CBF and MTT computation.";
-        tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w);
+        tsd.computePerfusionParameters(a.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w,
+                                       a.cbfTime);
     }
     delete[] convolutionMatrix;
     delete[] aif;

@@ -211,15 +211,16 @@ public:
                               float* convolutionInverse,
                               std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w,
                               std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w,
-                              std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w)
+                              std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w,
+                              float cbfTime = 60.0)
     {
         float* values = new float[dimx * dimy * granularity];
         // float* convol = new float[dimx * dimy * granularity]();
         float convol_i;
-        float* maxval_cbf = new float[dimx * dimy];
+        float* maxval_cbf = new float[dimx * dimy]();
         float* sum_cbv = new float[dimx * dimy]();
         float* div_mtt = new float[dimx * dimy];
-        std::fill(maxval_cbf, &maxval_cbf[dimx * dimy], std::numeric_limits<float>::lowest());
+        // std::fill(maxval_cbf, &maxval_cbf[dimx * dimy], std::numeric_limits<float>::lowest());
         double dt = (intervalEnd - intervalStart) / double(granularity - 1);
         attenuationEvaluator->frameTimeSeries(z, granularity, values);
         for(int x = 0; x != dimx; x++)
@@ -235,19 +236,26 @@ public:
                         convol_i += convolutionInverse[i * granularity + j]
                             * values[j * dimx * dimy + y * dimx + x];
                     }
-                    if(convol_i / dt > maxval_cbf[x + dimx * y])
+                    if(convol_i / dt > maxval_cbf[x + dimx * y] && i * dt / secLength <= cbfTime)
                     {
                         maxval_cbf[x + dimx * y] = convol_i / dt;
                     }
-                    sum_cbv[x + dimx * y] += convol_i;
+                    if(convol_i > 0)
+                    {
+                        sum_cbv[x + dimx * y] += convol_i;
+                    }
                 }
                 if(maxval_cbf[x + dimx * y] == 0.0)
                 {
-                    div_mtt[x + dimx * y] = 0.0;
+                    div_mtt[x + dimx * y] = 60.0; // Maximum
                 } else
                 {
                     div_mtt[x + dimx * y] = sum_cbv[x + dimx * y]
                         / (maxval_cbf[x + dimx * y] * secLength); // Scaling to seconds
+                }
+                if(div_mtt[x + dimx * y] > 60.0)
+                {
+                    div_mtt[x + dimx * y] = 60.0;
                 }
                 sum_cbv[x + dimx * y] *= 100; // Scaling to mL/100g
                 maxval_cbf[x + dimx * y] *= secLength;
@@ -283,7 +291,8 @@ public:
                                     float* convolutionInverse,
                                     std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w,
                                     std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w,
-                                    std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w)
+                                    std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w,
+                                    float cbfTime = 60.0)
     {
 
         if(threads == 0)
@@ -302,10 +311,11 @@ public:
             ftpl::thread_pool* threadpool = new ftpl::thread_pool(threads);
             for(int z = 0; z != dimz; z++)
             {
-                threadpool->push([&, this, z, convolutionInverse, granularity, cbf_w, cbv_w,
-                                  mtt_w](int id) {
-                    writePerfusionFrames(z, granularity, convolutionInverse, cbf_w, cbv_w, mtt_w);
-                });
+                threadpool->push(
+                    [&, this, z, convolutionInverse, granularity, cbf_w, cbv_w, mtt_w](int id) {
+                        writePerfusionFrames(z, granularity, convolutionInverse, cbf_w, cbv_w,
+                                             mtt_w, cbfTime);
+                    });
             }
             threadpool->stop(true);
             delete threadpool;

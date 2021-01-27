@@ -52,6 +52,9 @@ include_directories(${CMAKE_SOURCE_DIR}/submodules/matplotlib-cpp)
 find_package (Python3 COMPONENTS Development)
 include_directories(${Python3_INCLUDE_DIRS})
 
+#Git versioning
+INCLUDE(${CMAKE_SOURCE_DIR}/submodules/gitversion/cmake.cmake)
+include_directories(${CMAKE_SOURCE_DIR}/submodules/gitversion)
 
 add_custom_target(formatWebkit
 ./formatWebkit
@@ -65,6 +68,7 @@ set_target_properties(
         OUTPUT_NAME "perfviz-polynomial"
         SUFFIX ""
 )
+target_git_version_init(perfvizPolynomial)
 target_link_libraries(perfvizPolynomial ctiol)
 target_link_libraries(perfvizPolynomial ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfvizPolynomial ${MKL_CORE_LIBRARY})
@@ -79,6 +83,7 @@ set_target_properties(
         OUTPUT_NAME "perfviz-fourier"
         SUFFIX ""
 )
+target_git_version_init(perfvizFourier)
 target_link_libraries(perfvizFourier ctiol)
 target_link_libraries (perfvizFourier ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfvizFourier ${MKL_CORE_LIBRARY})
@@ -93,6 +98,7 @@ set_target_properties(
         OUTPUT_NAME "perfviz-fourier-kva"
         SUFFIX ""
 )
+target_git_version_init(perfvizFourierKVA)
 target_link_libraries(perfvizFourierKVA ctiol)
 target_link_libraries (perfvizFourierKVA ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfvizFourierKVA ${MKL_CORE_LIBRARY})
@@ -107,6 +113,7 @@ set_target_properties(
         OUTPUT_NAME "perfviz-engineer"
         SUFFIX ""
 )
+target_git_version_init(perfviz_engineer)
 target_link_libraries(perfviz_engineer ctiol)
 target_link_libraries (perfviz_engineer ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfviz_engineer ${MKL_CORE_LIBRARY})
@@ -121,6 +128,7 @@ set_target_properties(
         OUTPUT_NAME "perfviz-staticrec"
         SUFFIX ""
 )
+target_git_version_init(perfviz_staticrec)
 target_link_libraries(perfviz_staticrec ctiol)
 target_link_libraries (perfviz_staticrec ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfviz_staticrec ${MKL_CORE_LIBRARY})
@@ -135,6 +143,7 @@ set_target_properties(
         OUTPUT_NAME "perfviz-ctrec"
         SUFFIX ""
 )
+target_git_version_init(perfviz_ctrec)
 target_link_libraries(perfviz_ctrec ctiol)
 target_link_libraries (perfviz_ctrec ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfviz_ctrec ${MKL_CORE_LIBRARY})
@@ -149,6 +158,7 @@ set_target_properties(
         OUTPUT_NAME "perfviz-ctvol"
         SUFFIX ""
 )
+target_git_version_init(perfviz_ctvol)
 target_link_libraries(perfviz_ctvol ctiol)
 target_link_libraries (perfviz_ctvol ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfviz_ctvol ${MKL_CORE_LIBRARY})
@@ -163,6 +173,7 @@ set_target_properties(
         OUTPUT_NAME "perfviz-ctkva"
         SUFFIX ""
 )
+target_git_version_init(perfviz_ctkva)
 target_link_libraries(perfviz_ctkva ctiol)
 target_link_libraries (perfviz_ctkva ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(perfviz_ctkva ${MKL_CORE_LIBRARY})

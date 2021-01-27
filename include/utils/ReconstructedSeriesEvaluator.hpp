@@ -14,7 +14,7 @@ namespace CTL::util {
 class ReconstructedSeriesEvaluator : public Attenuation4DEvaluatorI
 {
 public:
-    /**Evaluation of the attenuation values based on the Engineered basis.
+    /**Evaluation of the attenuation values based on the Static reconstructions.
      *
      *@param[in] sampledBasisFunctions Sampled basis functions in a DEN file the number of sampling
      *points is equal to dimx and dimz is a number of functions.
@@ -22,7 +22,12 @@ public:
      *@param[in] intervalStart Start time.
      *@param[in] intervalEnd End time.
      */
-    ReconstructedSeriesEvaluator(std::vector<std::string>& coefficientVolumeFiles,
+    ReconstructedSeriesEvaluator(std::vector<std::string>& attenuationVolumeFiles,
+                                 float sweepTime,
+                                 float sweepOffset);
+
+    ReconstructedSeriesEvaluator(std::string staticDir,
+                                 uint32_t sweepCount,
                                  float sweepTime,
                                  float sweepOffset);
 
@@ -111,6 +116,7 @@ public:
     void frameTimeSeries(const uint16_t z, const uint32_t granularity, float* val) override;
 
 private:
+    void initialize(std::vector<std::string>& coefficientVolumeFiles);
     /**Function to obtain time discretization as double array.
      *
      *This function evaluates the time instants in which other functions of the implementing class
@@ -190,19 +196,15 @@ private:
     void updateStoredVals(const uint16_t z);
 };
 
-ReconstructedSeriesEvaluator::ReconstructedSeriesEvaluator(
-    std::vector<std::string>& attenuationVolumeFiles, float sweepTime, float sweepOffset)
-    : Attenuation4DEvaluatorI(sweepOffset,
-                              sweepOffset + (attenuationVolumeFiles.size() - 1) * sweepTime)
-    , sweepTime(sweepTime)
-    , sweepOffset(sweepOffset)
+void ReconstructedSeriesEvaluator::initialize(std::vector<std::string>& attenuationVolumeFiles)
 {
-
     if(attenuationVolumeFiles.size() < 2)
     {
-        io::throwerr(
+        std::string msg = io::xprintf(
             "Number of files with attenuation information needs to be at least 2 but is %d.",
             attenuationVolumeFiles.size());
+        LOGE << msg;
+        throw std::runtime_error(msg);
     }
     breakpointsNum = attenuationVolumeFiles.size();
     breakpointsT = new double[breakpointsNum];
@@ -241,6 +243,34 @@ ReconstructedSeriesEvaluator::ReconstructedSeriesEvaluator(
     }
     storedZ = 1;
     updateStoredVals(0); // Just to have something in thye storedInitVal pointer
+}
+
+ReconstructedSeriesEvaluator::ReconstructedSeriesEvaluator(std::string attenuationVolumeDir,
+                                                           uint32_t sweepCount,
+                                                           float sweepTime,
+                                                           float sweepOffset)
+    : Attenuation4DEvaluatorI(sweepOffset, sweepOffset + (sweepCount - 1) * sweepTime)
+    , sweepTime(sweepTime)
+    , sweepOffset(sweepOffset)
+{
+
+    std::vector<std::string> attenuationVolumeFiles;
+    for(uint32_t i = 0; i != sweepCount; i++)
+    {
+        attenuationVolumeFiles.emplace_back(
+            io::xprintf("%s/RUN%02d.den", attenuationVolumeDir.c_str(), i + 1));
+    }
+    initialize(attenuationVolumeFiles);
+}
+
+ReconstructedSeriesEvaluator::ReconstructedSeriesEvaluator(
+    std::vector<std::string>& attenuationVolumeFiles, float sweepTime, float sweepOffset)
+    : Attenuation4DEvaluatorI(sweepOffset,
+                              sweepOffset + (attenuationVolumeFiles.size() - 1) * sweepTime)
+    , sweepTime(sweepTime)
+    , sweepOffset(sweepOffset)
+{
+    initialize(attenuationVolumeFiles);
 }
 
 ReconstructedSeriesEvaluator::~ReconstructedSeriesEvaluator()
