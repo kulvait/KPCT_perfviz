@@ -249,7 +249,7 @@ ReconstructedSeriesEvaluator::ReconstructedSeriesEvaluator(std::string attenuati
                                                            uint32_t sweepCount,
                                                            float sweepTime,
                                                            float sweepOffset)
-    : Attenuation4DEvaluatorI(sweepOffset, sweepOffset + (sweepCount - 1) * sweepTime)
+    : Attenuation4DEvaluatorI(sweepOffset, (sweepCount-1) * sweepTime + sweepOffset)
     , sweepTime(sweepTime)
     , sweepOffset(sweepOffset)
 {

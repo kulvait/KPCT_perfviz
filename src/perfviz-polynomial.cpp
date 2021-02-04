@@ -18,6 +18,7 @@
 #include "utils/Attenuation4DEvaluatorI.hpp"
 #include "utils/PolynomialSeriesEvaluator.hpp"
 #include "utils/TimeSeriesDiscretizer.hpp"
+#include "utils/ReconstructedSeriesEvaluator.hpp"
 
 #ifdef DEBUG
 #include "matplotlibcpp.h"
@@ -154,11 +155,15 @@ int main(int argc, char* argv[])
     {
         pt = util::polynomialType::Legendre;
     }
-    std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
+    std::shared_ptr<util::PolynomialSeriesEvaluator> concentration
         = std::make_shared<util::PolynomialSeriesEvaluator>(
             ARG.fittedCoefficients.size() - 1, ARG.fittedCoefficients, ARG.startTime, ARG.endTime,
             !ARG.allowNegativeValues, pt);
     // Vizualization
+    auto offsetReader = std::make_shared<io::DenFrame2DReader<float>>(ARG.fittedCoefficients[0]);
+    auto aifframe = offsetReader->readFrame(ARG.ifz);
+    float aifofset = aifframe->get(ARG.ifx, ARG.ify)
+        + concentration->valueAt_intervalStart(ARG.ifx, ARG.ify, ARG.ifz);
     float* convolutionMatrix = new float[ARG.granularity * ARG.granularity];
     float* aif = new float[ARG.granularity];
     concentration->timeSeriesIn(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity, aif);
@@ -187,7 +192,16 @@ int main(int argc, char* argv[])
 
     if(ARG.showAIF || !ARG.aifImageFile.empty())
     {
-        plt::title(io::xprintf("Time attenuation curve, TST Polynomial, x=%d, y=%d, z=%d.", ARG.ifx, ARG.ify, ARG.ifz));
+        std::string polynomialType;
+        if(ARG.chebyshev)
+        {
+            polynomialType = "Chebyshev";
+        } else
+        {
+            polynomialType = "Legendre";
+        }
+        plt::title(io::xprintf("Time attenuation curve, TST %s, x=%d, y=%d, z=%d.", polynomialType.c_str(), ARG.ifx,
+                               ARG.ify, ARG.ifz));
         plt::xlabel("Time [s]");
         if(ARG.water_value > 0)
         {
@@ -196,16 +210,50 @@ int main(int argc, char* argv[])
         {
             plt::ylabel("Attenuation");
         }
+        std::vector<double> taxis_scatter;
+        std::vector<double> plotme_scatter;
+        if(ARG.staticReconstructionDir != "")
+        {
+            std::shared_ptr<util::ReconstructedSeriesEvaluator> _concentration
+                = std::make_shared<util::ReconstructedSeriesEvaluator>(
+                    ARG.staticReconstructionDir, ARG.sweepCount, ARG.sweepTime, ARG.sweepOffset);
+            taxis_scatter = _concentration->nativeTimeDiscretization();
+            plotme_scatter = _concentration->nativeValuesIn(ARG.ifx, ARG.ify, ARG.ifz);
+            if(ARG.water_value > 0)
+            {
+                for(uint32_t i = 0; i != plotme_scatter.size(); i++)
+                {
+                    float v = plotme_scatter[i];
+                    float hu = 1000 * (v / ARG.water_value - 1.0);
+                    plotme_scatter[i] = hu;
+                    taxis_scatter[i] = taxis_scatter[i] / 1000;
+                }
+            }
+        }
         std::vector<double> taxis;
         float* _taxis = new float[ARG.granularity];
         concentration->timeDiscretization(ARG.granularity, _taxis);
         std::vector<double> plotme;
         for(uint32_t i = 0; i != ARG.granularity; i++)
         {
-            plotme.push_back(aif[i]);
-            taxis.push_back(_taxis[i]);
+            float v = aif[i] + aifofset;
+            if(ARG.water_value > 0)
+            {
+                float hu = 1000 * (v / ARG.water_value - 1.0);
+                plotme.push_back(hu);
+            } else
+            {
+                plotme.push_back(v);
+            }
+            taxis.push_back(_taxis[i] / 1000);
         }
         plt::plot(taxis, plotme);
+        if(ARG.staticReconstructionDir != "")
+        {
+            std::map<std::string, std::string> pltargs;
+            pltargs.insert(std::pair<std::string, std::string>("Color", "Orange"));
+            plt::scatter(taxis_scatter, plotme_scatter, 90.0, pltargs);
+        }
         if(ARG.showAIF)
         {
             plt::show();
