@@ -52,6 +52,8 @@ public:
 protected:
     void addIntervalGroup();
     void addIntervalArgs(bool sweepParameters);
+    void addGranularity();
+    void addSecLength();
     void addSettingsGroup();
     void addSettingsArgs();
     void addVizualizationGroup();

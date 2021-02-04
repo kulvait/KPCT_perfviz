@@ -19,6 +19,25 @@ void PerfusionVizualizationArguments::addIntervalGroup()
     og_interval = getRegisteredOptionGroup("interval");
 }
 
+void PerfusionVizualizationArguments::addGranularity()
+{
+    addIntervalGroup();
+    std::string optstr
+        = io::xprintf("Granularity of the time is number of time points to which time "
+                      "interval is discretized. Defaults to %d",
+                      granularity);
+    og_interval->add_option("-g,--granularity", granularity, optstr)->check(CLI::Range(1, 1000000));
+}
+
+void PerfusionVizualizationArguments::addSecLength()
+{
+    addIntervalGroup();
+    std::string optstr = io::xprintf(
+        "Length of one second in the units of the domain. Defaults to %0.2f.", secLength);
+    og_interval->add_option("-c,--sec-length", secLength, optstr)
+        ->check(CLI::Range(0.0, 1000000.0));
+}
+
 void PerfusionVizualizationArguments::addIntervalArgs(bool sweepParameters)
 {
     addIntervalGroup();
@@ -33,15 +52,8 @@ void PerfusionVizualizationArguments::addIntervalArgs(bool sweepParameters)
                      "End of the interval in miliseconds of the support of the functions of time "
                      "[defaults to 56000, duration of 9 sweeps].")
         ->check(CLI::Range(0.0, 100000.0));
-    og_interval
-        ->add_option("-c,--sec-length", secLength,
-                     "Length of one second in the units of the domain. Defaults to 1000.")
-        ->check(CLI::Range(0.0, 1000000.0));
-    og_interval
-        ->add_option("-g,--granularity", granularity,
-                     "Granularity of the time is number of time points to which time interval is "
-                     "discretized. Defaults to 100.")
-        ->check(CLI::Range(1, 1000000));
+    addSecLength();
+    addGranularity();
     if(sweepParameters)
     {
         description = io::xprintf("Sweep time between the starts of two consecutive acquisitions "

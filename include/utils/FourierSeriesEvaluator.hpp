@@ -5,6 +5,8 @@
 #include <vector>
 
 #include "utils/Attenuation4DEvaluatorI.hpp"
+#include "FUN/VectorFunctionI.h"
+#include "FUN/FourierSeries.hpp"
 
 namespace CTL::util {
 
