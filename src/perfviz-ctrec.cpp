@@ -109,6 +109,20 @@ void Args::defineArguments()
 int Args::postParse()
 {
     std::string err;
+    if(outputFolder.compare("-") == 0)
+    {
+        stopAfterVizualization = true;
+        LOGI << "No directory specified so that after visualization program ends.";
+    } else
+    {
+        if(!io::isDirectory(outputFolder))
+        {
+            err = io::xprintf("The path %s does not encode a valid directory!",
+                              outputFolder.c_str());
+            LOGE << err;
+            return -1;
+        }
+    }
     if(coefficientVolumeFiles.size() != 30 && coefficientVolumeFiles.size() != 15)
     {
         err = io::xprintf("Number of sweeps is %d which is unusual number.",
