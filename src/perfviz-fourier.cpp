@@ -192,14 +192,14 @@ int main(int argc, char* argv[])
                     ARG.staticReconstructionDir, ARG.sweepCount, ARG.sweepTime, ARG.sweepOffset);
             taxis_scatter = _concentration->nativeTimeDiscretization();
             plotme_scatter = _concentration->nativeValuesIn(ARG.ifx, ARG.ify, ARG.ifz);
-            if(ARG.water_value > 0)
+            for(uint32_t i = 0; i != plotme_scatter.size(); i++)
             {
-                for(uint32_t i = 0; i != plotme_scatter.size(); i++)
+                taxis_scatter[i] = taxis_scatter[i] / ARG.secLength;
+                if(ARG.water_value > 0)
                 {
                     float v = plotme_scatter[i];
                     float hu = 1000 * (v / ARG.water_value - 1.0);
                     plotme_scatter[i] = hu;
-                    taxis_scatter[i] = taxis_scatter[i] / 1000;
                 }
             }
         }
@@ -218,7 +218,7 @@ int main(int argc, char* argv[])
             {
                 plotme.push_back(v);
             }
-            taxis.push_back(_taxis[i] / 1000);
+            taxis.push_back(_taxis[i] / ARG.secLength);
         }
         plt::plot(taxis, plotme);
         if(ARG.staticReconstructionDir != "")

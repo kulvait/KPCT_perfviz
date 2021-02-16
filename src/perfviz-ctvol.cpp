@@ -52,7 +52,7 @@ struct Arguments
      *First frame is aquired directly after pause. From DICOM it is 16.6666667ms. From
      *experiment 16.8ms.
      */
-    float frameTime_ms = 16.8;
+    float frameTime_ms = 16.666667;
 
     /**
      *Size of pause between sweeps [ms].
@@ -94,6 +94,7 @@ int Arguments::parseArguments(int argc, char* argv[])
                    "Volume files equipped with the tick files in a DEN format.")
         ->required()
         ->check(CLI::ExistingFile);
+    std::string optString;
     CLI::Option_group* carm_cli
         = app.add_option_group("C-Arm CT parameters", "Parameters to tune C-Arm CT acquisition.");
     carm_cli->add_option("--sweep-count", sweepCount, "Number of sweeps. Default 10.")
@@ -102,11 +103,11 @@ int Arguments::parseArguments(int argc, char* argv[])
         ->add_option("-a,--angles-per-sweep", anglesPerSweep,
                      "Number of frames acquired per one sweep, defaults to 248")
         ->check(CLI::Range(1, 10000));
-    carm_cli
-        ->add_option("-f,--frame-time", frameTime_ms,
-                     "Frame Time. (0018, 1063) Nominal time (in msec) per individual frame (slice) "
-                     "[ms]. Might be supplied for fine tuning of the algorithm. [default is "
-                     "16.8]")
+    optString = io::xprintf("Frame Time. (0018, 1063) Nominal time (in msec) per individual frame "
+                            "(slice) [ms]. Might be supplied for fine tuning of the algorithm. "
+                            "[default is %f]",
+                            frameTime_ms);
+    carm_cli->add_option("-f,--frame-time", frameTime_ms, optString)
         ->check(CLI::Range(0.01, 10000.0));
     carm_cli
         ->add_option("-s,--pause-size", pauseSize_ms,

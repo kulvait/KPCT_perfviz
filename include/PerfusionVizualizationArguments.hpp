@@ -41,7 +41,7 @@ public:
     // Settings
     CLI::Option_group* og_settings = nullptr;
     // Time in seconds to define interval [0, cbf_time) for maximum computation for CBF
-    float cbf_time = 3.0f;
+    float cbf_time = 5.0f;
     float lambda_rel = 0.2;
     /**
      * @brief File to store AIF.
