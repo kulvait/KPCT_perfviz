@@ -201,10 +201,10 @@ int main(int argc, char* argv[])
     ti.computePseudoinverse(convolutionMatrix, n);
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> kva
         = std::make_shared<io::DenAsyncFrame2DWritter<float>>(ARG.outputFile, dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> kvb
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>("/tmp/KVB.den", dimx, dimy, dimz);
-    std::shared_ptr<io::AsyncFrame2DWritterI<float>> kvc
-        = std::make_shared<io::DenAsyncFrame2DWritter<float>>("/tmp/KVC.den", dimx, dimy, dimz);
+//    std::shared_ptr<io::AsyncFrame2DWritterI<float>> kvb
+//        = std::make_shared<io::DenAsyncFrame2DWritter<float>>("/tmp/KVB.den", dimx, dimy, dimz);
+//    std::shared_ptr<io::AsyncFrame2DWritterI<float>> kvc
+//        = std::make_shared<io::DenAsyncFrame2DWritter<float>>("/tmp/KVC.den", dimx, dimy, dimz);
     std::shared_ptr<io::Frame2DReaderI<float>> startData
         = std::make_shared<io::DenFrame2DReader<float>>(ARG.tickFiles[0]);
     std::shared_ptr<io::Frame2DReaderI<float>> endData
@@ -279,8 +279,8 @@ int main(int argc, char* argv[])
             }
         }
         kva->writeFrame(kvafr, z);
-        kvb->writeFrame(kvbfr, z);
-        kvc->writeFrame(kvcfr, z);
+//        kvb->writeFrame(kvbfr, z);
+//        kvc->writeFrame(kvcfr, z);
     }
     delete[] values;
     delete[] convolutionMatrix;
