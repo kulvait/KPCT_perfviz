@@ -81,7 +81,8 @@ void Args::defineArguments()
     pol_og->add_flag("--legendre", legendre, "Use Legendre polynomials.");
     pol_og->require_option(1);
     cliApp->add_flag("--allow-negative-values", allowNegativeValues, "Allow negative values.");
-    addIntervalArgs(true);
+    addIntervalArgs();
+    addSweepArgs(true);
     addVizualizationArgs(true);
     CLI::Option_group* flow_og = cliApp->add_option_group("Program flow parameters");
     addThreadingArgs(flow_og);

@@ -24,7 +24,7 @@ void PerfusionVizualizationArguments::addGranularity()
     addIntervalGroup();
     std::string optstr
         = io::xprintf("Granularity of the time is number of time points to which time "
-                      "interval is discretized. Defaults to %d",
+                      "interval is discretized [defaults to %d].",
                       granularity);
     og_interval->add_option("-g,--granularity", granularity, optstr)->check(CLI::Range(1, 1000000));
 }
@@ -38,7 +38,7 @@ void PerfusionVizualizationArguments::addSecLength()
         ->check(CLI::Range(0.0, 1000000.0));
 }
 
-void PerfusionVizualizationArguments::addIntervalArgs(bool sweepParameters)
+void PerfusionVizualizationArguments::addIntervalArgs()
 {
     addIntervalGroup();
     std::string description;
@@ -54,19 +54,25 @@ void PerfusionVizualizationArguments::addIntervalArgs(bool sweepParameters)
         ->check(CLI::Range(0.0, 100000.0));
     addSecLength();
     addGranularity();
-    if(sweepParameters)
+}
+
+void PerfusionVizualizationArguments::addSweepArgs(bool includeSweepCount)
+{
+    addIntervalGroup();
+    std::string description;
+    description = io::xprintf("Time between the starts of two consecutive acquisitions "
+                              "in miliseconds. [defaults to %f]",
+                              sweepTime);
+    og_interval->add_option("--sweep-time", sweepTime, description)
+        ->check(CLI::Range(0.0, 100000.0));
+    description = io::xprintf("Offset at the beginning and of aquisition in "
+                              "seconds/1000. . [defaults to %f]",
+                              sweepOffset);
+    og_interval->add_option("--sweep-offset", sweepOffset, description)
+        ->check(CLI::Range(0.0, 100000.0));
+    description = io::xprintf("Number of sweeps. [defaults to %d]", sweepCount);
+    if(includeSweepCount)
     {
-        description = io::xprintf("Sweep time between the starts of two consecutive acquisitions "
-                                  "in miliseconds. [defaults to %f]",
-                                  sweepTime);
-        og_interval->add_option("--sweep-time", sweepTime, description)
-            ->check(CLI::Range(0.0, 100000.0));
-        description = io::xprintf("Offset at the beginning and at the end of aquisition in "
-                                  "seconds/1000. . [defaults to %f]",
-                                  sweepOffset);
-        og_interval->add_option("--sweep-offset", sweepOffset, description)
-            ->check(CLI::Range(0.0, 100000.0));
-        description = io::xprintf("Number of sweeps. [defaults to %d]", sweepCount);
         og_interval->add_option("--sweep-count", sweepCount, description)->check(CLI::Range(2, 20));
     }
 }
@@ -96,6 +102,8 @@ void PerfusionVizualizationArguments::addVizualizationArgs(bool staticReconstruc
     og_vizualization->add_flag("--show-basis", showBasis, "Show basis.");
     og_vizualization->add_flag("--show-aif", showAIF, "Show AIF.");
     og_vizualization->add_option("--store-aif", aifImageFile, "Store AIF into image file.");
+    og_vizualization->add_option("--store-aif-csv", aifCsvFile,
+                                 "Store AIF in the form of CSV file.");
     og_vizualization->add_option("--store-basis", basisImageFile, "Store basis into image file.");
     if(staticReconstructionVisualization)
     {

@@ -47,11 +47,13 @@ public:
      * @brief File to store AIF.
      */
     std::string aifImageFile = "";
+    std::string aifCsvFile = "";
     std::string basisImageFile = "";
 
 protected:
     void addIntervalGroup();
-    void addIntervalArgs(bool sweepParameters);
+    void addIntervalArgs();
+    void addSweepArgs(bool includeSweepCount);
     void addGranularity();
     void addSecLength();
     void addSettingsGroup();

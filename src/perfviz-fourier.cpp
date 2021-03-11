@@ -71,7 +71,8 @@ void Args::defineArguments()
                      "coeficient that corresponds to the constant.")
         ->required()
         ->check(CLI::ExistingFile);
-    addIntervalArgs(true);
+    addIntervalArgs();
+    addSweepArgs(true);
     addVizualizationArgs(true);
     addSettingsArgs();
     CLI::Option_group* flow_og = cliApp->add_option_group("Program flow parameters");

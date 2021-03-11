@@ -52,7 +52,7 @@ public:
     std::vector<std::string> tickFiles;
 
     /// Coordinates of arthery input function
-    uint16_t ifx, ify, ifz;
+    uint32_t ifx, ify, ifz;
 
     uint32_t baseSize;
 
@@ -65,7 +65,7 @@ public:
      */
     std::string vizualizeFourier;
     bool allowNegativeValues = false;
-    float cbfTime = 60.0;
+    float cbfTime = 5.0;
 };
 
 void Args::defineArguments()
