@@ -5,6 +5,7 @@
 
 //#include "FittingExecutor.hpp"
 #include "AsyncFrame2DWritterI.hpp"
+#include "CSVWriter.hpp"
 #include "DEN/DenAsyncFrame2DWritter.hpp"
 #include "DEN/DenFileInfo.hpp"
 #include "DEN/DenFrame2DReader.hpp"
@@ -160,25 +161,26 @@ int main(int argc, char* argv[])
         + concentration->valueAt_intervalStart(ARG.ifx, ARG.ify, ARG.ifz);
     concentration->timeSeriesIn(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity, aif);
     utils::TikhonovInverse::precomputeConvolutionMatrix(ARG.granularity, aif, convolutionMatrix);
-    if(ARG.showBasis || !ARG.basisImageFile.empty())
-    {
-        util::FourierSeries b(ARG.fittedCoefficients.size(), ARG.startTime, ARG.endTime, 1);
-        if(ARG.showBasis)
-        {
-            b.plotFunctions();
-        }
-        if(!ARG.basisImageFile.empty())
-        {
-            b.storeFunctions(ARG.basisImageFile);
-        }
-    }
-    if(ARG.showAIF || !ARG.aifImageFile.empty())
+    if(ARG.vizualize || !ARG.aifImageFile.empty() || !ARG.aifCsvFile.empty()
+       || !ARG.basisImageFile.empty())
     {
         // See
         // https://stackoverflow.com/questions/4931376/generating-matplotlib-graphs-without-a-running-x-server
         if(!ARG.vizualize)
         {
             plt::backend("Agg");
+        }
+        if(ARG.showBasis || !ARG.basisImageFile.empty())
+        {
+            util::FourierSeries b(ARG.fittedCoefficients.size(), ARG.startTime, ARG.endTime, 1);
+            if(ARG.showBasis)
+            {
+                b.plotFunctions();
+            }
+            if(!ARG.basisImageFile.empty())
+            {
+                b.storeFunctions(ARG.basisImageFile);
+            }
         }
         plt::title(io::xprintf("Time attenuation curve, TST Fourier, x=%d, y=%d, z=%d.", ARG.ifx,
                                ARG.ify, ARG.ifz));
@@ -242,6 +244,16 @@ int main(int argc, char* argv[])
         {
             plt::save(ARG.aifImageFile);
         }
+        if(!ARG.aifCsvFile.empty())
+        {   
+            io::CSVWriter csv(ARG.aifCsvFile, "\t", true);
+            csv.writeLine(io::xprintf("perfviz-fourier generated AIF (x,y,z)=(%d, %d, %d) with %d coefficients"
+                                      "startTime=%f and endTime=%f",
+                                      ARG.ifx, ARG.ify, ARG.ifz, ARG.fittedCoefficients.size(), ARG.startTime, ARG.endTime));
+            csv.writeVector("time_staticrec_interp", taxis);
+            csv.writeVector("value_staticrec_interp", plotme);
+            csv.close();
+        }  
         delete[] _taxis;
     }
     if(ARG.stopAfterVizualization)

@@ -171,13 +171,23 @@ int main(int argc, char* argv[])
     LOGI << io::xprintf("Start time is %f and end time is %f", a.startTime, a.endTime);
     std::shared_ptr<util::Attenuation4DEvaluatorI> concentration
         = std::make_shared<util::FourierSeriesEvaluator>(a.fittedCoefficients, a.startTime,
-                                                         a.endTime, !a.allowNegativeValues, a.halfPeriodicFunctions);
+                                                         a.endTime, !a.allowNegativeValues,
+                                                         a.halfPeriodicFunctions);
     // Vizualization
-    float* convolutionMatrix = new float[a.granularity * a.granularity];
-    float* aif = new float[a.granularity]();
-    aif[0] = 0.5;
-    aif[1] = 1.0;
-    aif[2] = 0.5;
+    uint32_t n = a.granularity;
+    float* convolutionMatrix = new float[n * n];
+    float* aif = new float[n]();
+    // Let's expect that the AIF profile is 9^(-1)*exp(1)*t*exp(-t/9) t_max=9.0, alpha=1, y_max=1
+    // https://doi.org/10.1088/0031-9155/37/7/010 Let's expect that [0,60] maps to [0,n]
+    for(uint32_t i = 0; i != n; i++)
+    {
+        float t = 60.0 * float(i) / float(n - 1);
+        aif[i] = (t / 9.0) * std::exp(1.0 - t / 9.0);
+    }
+
+    //  aif[0] = 0.5;
+    // aif[1] = 1.0;
+    // aif[2] = 0.5;
     utils::TikhonovInverse::precomputeConvolutionMatrix(a.granularity, aif, convolutionMatrix);
     if(a.vizualize || !a.storeAIF.empty())
     {
@@ -244,9 +254,12 @@ int main(int argc, char* argv[])
                         convol_i += convolutionMatrix[i * a.granularity + j]
                             * values[j * dimx * dimy + y * dimx + x];
                     }
-                    if(convol_i * float(a.granularity - i - 1) / float(a.granularity - 1) > kvafr.get(x, y))
+                    if(convol_i * float(a.granularity - i - 1) / float(a.granularity - 1)
+                       > kvafr.get(x, y))
                     {
-                        kvafr.set(convol_i * float(a.granularity - i - 1) / float(a.granularity - 1), x, y);
+                        kvafr.set(convol_i * float(a.granularity - i - 1)
+                                      / float(a.granularity - 1),
+                                  x, y);
                     }
                     kvbfr.set(convol_i + kvbfr.get(x, y), x, y);
                     kvcfr.set(values[i * dimx * dimy + y * dimx + x] + kvcfr.get(x, y), x, y);
