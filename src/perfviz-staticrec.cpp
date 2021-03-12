@@ -176,6 +176,12 @@ int main(int argc, char* argv[])
     utils::TikhonovInverse::precomputeConvolutionMatrix(ARG.granularity, aif, convolutionMatrix);
     if(ARG.vizualize || !ARG.aifImageFile.empty() || !ARG.aifCsvFile.empty())
     {
+        // See
+        // https://stackoverflow.com/questions/4931376/generating-matplotlib-graphs-without-a-running-x-server
+        if(!ARG.vizualize)
+        {
+            plt::backend("Agg");
+        }
         float* _taxis = new float[ARG.granularity]();
         float* aif_native = new float[ARG.granularity]();
         concentration->timeDiscretization(ARG.granularity, _taxis);

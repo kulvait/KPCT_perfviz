@@ -174,6 +174,12 @@ int main(int argc, char* argv[])
     }
     if(ARG.showAIF || !ARG.aifImageFile.empty())
     {
+        // See
+        // https://stackoverflow.com/questions/4931376/generating-matplotlib-graphs-without-a-running-x-server
+        if(!ARG.vizualize)
+        {
+            plt::backend("Agg");
+        }
         plt::title(io::xprintf("Time attenuation curve, TST Fourier, x=%d, y=%d, z=%d.", ARG.ifx,
                                ARG.ify, ARG.ifz));
         plt::xlabel("Time [s]");
