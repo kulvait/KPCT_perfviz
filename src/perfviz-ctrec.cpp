@@ -5,6 +5,7 @@
 
 //#include "FittingExecutor.hpp"
 #include "AsyncFrame2DWritterI.hpp"
+#include "CSVWriter.hpp"
 #include "DEN/DenAsyncFrame2DWritter.hpp"
 #include "DEN/DenFileInfo.hpp"
 #include "DEN/DenFrame2DReader.hpp"
@@ -13,12 +14,12 @@
 #include "PROG/Program.hpp"
 #include "PerfusionVizualizationArguments.hpp"
 #include "SVD/TikhonovInverse.hpp"
+#include "gitversion/version.h"
 #include "rawop.h"
 #include "stringFormatter.h"
 #include "utils/CTEvaluator.hpp"
 #include "utils/FourierSeriesEvaluator.hpp"
 #include "utils/TimeSeriesDiscretizer.hpp"
-#include "gitversion/version.h"
 
 #if DEBUG
 #include "matplotlibcpp.h"
@@ -224,8 +225,8 @@ int main(int argc, char* argv[])
     float* aif = new float[ARG.granularity];
     if(ARG.allowNegativeValues)
     {
-        _concentration->timeSeriesNativeNoOffsetNoTruncationIn(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity,
-                                                               aif);
+        _concentration->timeSeriesNativeNoOffsetNoTruncationIn(ARG.ifx, ARG.ify, ARG.ifz,
+                                                               ARG.granularity, aif);
         for(uint32_t i = 0; i != ARG.granularity; i++)
         {
             aif[i] = aif[i] - aif[0];
@@ -235,18 +236,19 @@ int main(int argc, char* argv[])
         concentration->timeSeriesIn(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity, aif);
     }
     utils::TikhonovInverse::precomputeConvolutionMatrix(ARG.granularity, aif, convolutionMatrix);
-    if(ARG.showAIF || !ARG.aifImageFile.empty())
+    if(ARG.vizualize || !ARG.aifImageFile.empty() || !ARG.aifCsvFile.empty())
     {
         float* _taxis = new float[ARG.granularity]();
         float* aif_native = new float[ARG.granularity]();
         concentration->timeDiscretization(ARG.granularity, _taxis);
-        _concentration->timeSeriesNativeNoOffsetNoTruncationIn(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity,
-                                                               aif_native);
+        _concentration->timeSeriesNativeNoOffsetNoTruncationIn(ARG.ifx, ARG.ify, ARG.ifz,
+                                                               ARG.granularity, aif_native);
         std::vector<double> taxis;
         std::vector<double> plotme;
         std::vector<double> plotme_fourier;
         std::vector<double> taxis_scatter = _concentration->nativeTimeDiscretization(ARG.ifz);
-        std::vector<double> plotme_scatter = _concentration->nativeValuesIn(ARG.ifx, ARG.ify, ARG.ifz);
+        std::vector<double> plotme_scatter
+            = _concentration->nativeValuesIn(ARG.ifx, ARG.ify, ARG.ifz);
         if(ARG.vizualizeFourier != "")
         {
             std::vector<std::string> fourierVolumeFiles;
@@ -267,7 +269,8 @@ int main(int argc, char* argv[])
             auto aifframe = offsetReader->readFrame(ARG.ifz);
             float aifofset = aifframe->get(ARG.ifx, ARG.ify)
                 + concentrationFourier->valueAt_intervalStart(ARG.ifx, ARG.ify, ARG.ifz);
-            concentrationFourier->timeSeriesIn(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity, aif_fourier);
+            concentrationFourier->timeSeriesIn(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity,
+                                               aif_fourier);
             for(uint32_t i = 0; i != ARG.granularity; i++)
             {
                 float v = aif_fourier[i] + aifofset;
@@ -316,7 +319,8 @@ int main(int argc, char* argv[])
         {
             plt::backend("Agg");
         }
-        plt::title(io::xprintf("Time attenuation curve x=%d, y=%d, z=%d.", ARG.ifx, ARG.ify, ARG.ifz));
+        plt::title(
+            io::xprintf("Time attenuation curve x=%d, y=%d, z=%d.", ARG.ifx, ARG.ify, ARG.ifz));
         if(ARG.vizualizeFourier != "")
         {
             plt::named_plot("Harmonic approximation", taxis, plotme_fourier);
@@ -341,6 +345,17 @@ int main(int argc, char* argv[])
         if(!ARG.aifImageFile.empty())
         {
             plt::save(ARG.aifImageFile);
+        }
+        if(!ARG.aifCsvFile.empty())
+        {
+            io::CSVWriter csv(ARG.aifCsvFile, "\t", true);
+            csv.writeLine(io::xprintf("perfviz-ctrec generated AIF (x,y,z)=(%d, %d, %d)", ARG.ifx,
+                                      ARG.ify, ARG.ifz));
+            csv.writeVector("time_ct_bp", taxis_scatter);
+            csv.writeVector("value_ct_bp", plotme_scatter);
+            csv.writeVector("time_ct_interp", taxis);
+            csv.writeVector("value_ct_interp", plotme);
+            csv.close();
         }
         delete[] _taxis;
         delete[] aif_native;
