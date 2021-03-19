@@ -249,8 +249,7 @@ int main(int argc, char* argv[])
         {
             io::CSVWriter csv(ARG.aifCsvFile, "\t", true);
             csv.writeLine(io::xprintf(
-                "perfviz-fourier generated AIF (x,y,z)=(%d, %d, %d) with baseSize %d"
-                "startTime=%f and endTime=%f",
+                "perfviz-fourier generated AIF (x,y,z)=(%d, %d, %d) with baseSize %d, startTime=%f and endTime=%f",
                 ARG.ifx, ARG.ify, ARG.ifz, baseSize, ARG.startTime,
                 ARG.endTime));
             csv.writeVector(io::xprintf("time_harmonic%d_interp", baseSize), taxis);
