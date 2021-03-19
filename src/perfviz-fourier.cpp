@@ -148,6 +148,7 @@ int main(int argc, char* argv[])
     dimy = di.dimy();
     dimz = di.dimz();
     LOGI << io::xprintf("Start time is %f and end time is %f", ARG.startTime, ARG.endTime);
+    uint32_t baseSize = ARG.fittedCoefficients.size();
     std::shared_ptr<util::FourierSeriesEvaluator> concentration
         = std::make_shared<util::FourierSeriesEvaluator>(ARG.fittedCoefficients, ARG.startTime,
                                                          ARG.endTime, !ARG.allowNegativeValues,
@@ -245,15 +246,17 @@ int main(int argc, char* argv[])
             plt::save(ARG.aifImageFile);
         }
         if(!ARG.aifCsvFile.empty())
-        {   
+        {
             io::CSVWriter csv(ARG.aifCsvFile, "\t", true);
-            csv.writeLine(io::xprintf("perfviz-fourier generated AIF (x,y,z)=(%d, %d, %d) with %d coefficients"
-                                      "startTime=%f and endTime=%f",
-                                      ARG.ifx, ARG.ify, ARG.ifz, ARG.fittedCoefficients.size(), ARG.startTime, ARG.endTime));
-            csv.writeVector("time_staticrec_interp", taxis);
-            csv.writeVector("value_staticrec_interp", plotme);
+            csv.writeLine(io::xprintf(
+                "perfviz-fourier generated AIF (x,y,z)=(%d, %d, %d) with baseSize %d"
+                "startTime=%f and endTime=%f",
+                ARG.ifx, ARG.ify, ARG.ifz, baseSize, ARG.startTime,
+                ARG.endTime));
+            csv.writeVector(io::xprintf("time_harmonic%d_interp", baseSize), taxis);
+            csv.writeVector(io::xprintf("value_harmonic%d_interp", baseSize), plotme);
             csv.close();
-        }  
+        }
         delete[] _taxis;
     }
     if(ARG.stopAfterVizualization)
