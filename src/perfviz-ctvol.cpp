@@ -160,9 +160,9 @@ int Arguments::parseArguments(int argc, char* argv[])
     try
     {
         app.parse(argc, argv);
-        if(coefficientVolumeFiles.size() != 29)
+        if(coefficientVolumeFiles.size() != 29 && coefficientVolumeFiles.size() != 34)
         {
-            std::string err = io::xprintf("Number of sweeps is %d which is unusual number.",
+            std::string err = io::xprintf("Number of CT volumes is %d which is unusual number.",
                                           coefficientVolumeFiles.size());
             LOGW << err;
         }
@@ -345,9 +345,23 @@ int main(int argc, char* argv[])
                 LOGD << io::xprintf("Creating Volume%02d_%03d.den at time %0.2f", sweepid, angleid,
                                     t);
             }
-            volumeWritter = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-                io::xprintf("%s/Volume%02d_%03d.den", a.outputFolder.c_str(), sweepid, angleid),
-                a.dimx, a.dimy, a.dimz);
+            std::string fileName;
+            if(a.sweepCount < 100)
+            {
+                fileName = io::xprintf("%s/Volume%02d_%03d.den", a.outputFolder.c_str(), sweepid,
+                                       angleid);
+            } else
+            {
+                if(a.anglesPerSweep == 1)
+                {
+                    fileName = io::xprintf("%s/Volume%03d.den", a.outputFolder.c_str(), sweepid);
+                } else
+                {
+                    fileName = io::xprintf("%s/Volume%03d.den", a.outputFolder.c_str(), sweepid);
+                }
+            }
+            volumeWritter = std::make_shared<io::DenAsyncFrame2DWritter<float>>(fileName, a.dimx,
+                                                                                a.dimy, a.dimz);
             if(threadpool != nullptr)
             {
                 threadpool->push([&, concentration, t, volumeWritter](int id) {
