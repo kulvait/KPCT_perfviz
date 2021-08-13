@@ -2,7 +2,9 @@
 #include "PLOG/PlogSetup.h"
 // External libraries
 #include "CLI/CLI.hpp" //Command line parser
+#include "gitversion/version.h"
 
+#include "PROG/Program.hpp"
 //#include "FittingExecutor.hpp"
 #include "AsyncFrame2DWritterI.hpp"
 #include "CSVWriter.hpp"
@@ -12,10 +14,8 @@
 #include "FUN/FourierSeries.hpp"
 #include "Frame2DReaderI.hpp"
 #include "PROG/ArgumentsThreading.hpp"
-#include "PROG/Program.hpp"
 #include "PerfusionVizualizationArguments.hpp"
 #include "SVD/TikhonovInverse.hpp"
-#include "gitversion/version.h"
 #include "matplotlibcpp.h"
 #include "stringFormatter.h"
 #include "utils/Attenuation4DEvaluatorI.hpp"
@@ -48,7 +48,8 @@ public:
     std::vector<std::string> fittedCoefficients;
 
     /// Coordinates of arthery input function
-    uint16_t ifx, ify, ifz;
+    uint32_t ifx, ify, ifz;
+    uint32_t dimx, dimy, dimz;
 
     // Specify basis
     bool halfPeriodicFunctions = false;
@@ -100,6 +101,22 @@ int Args::postParse()
             return -1;
         }
     }
+    if(fittedCoefficients.size() <= 1)
+    {
+        err = io::xprintf("There shall be at least two fitted coefficients!");
+        LOGE << err;
+        return -1;
+    }
+    io::DenFileInfo di(fittedCoefficients[0]);
+    dimx = di.dimx();
+    dimy = di.dimy();
+    dimz = di.dimz();
+    if(ifx >= dimx || ify >= dimy || ifz >= dimz)
+    {
+        err = io::xprintf("Coordinates of the AIF must be within volume dimensions!");
+        LOGE << err;
+        return -1;
+    }
     if(!(startTime < endTime))
     {
         err = io::xprintf("Start time %f must preceed end time %f.", startTime, endTime);
@@ -142,11 +159,6 @@ int main(int argc, char* argv[])
         return -1; // Exited somehow wrong
     }
     PRG.startLog(true);
-    uint16_t dimx, dimy, dimz;
-    io::DenFileInfo di(ARG.fittedCoefficients[0]);
-    dimx = di.dimx();
-    dimy = di.dimy();
-    dimz = di.dimz();
     LOGI << io::xprintf("Start time is %f and end time is %f", ARG.startTime, ARG.endTime);
     uint32_t baseSize = ARG.fittedCoefficients.size();
     std::shared_ptr<util::FourierSeriesEvaluator> concentration
@@ -248,10 +260,10 @@ int main(int argc, char* argv[])
         if(!ARG.aifCsvFile.empty())
         {
             io::CSVWriter csv(ARG.aifCsvFile, "\t", true);
-            csv.writeLine(io::xprintf(
-                "perfviz-fourier generated AIF (x,y,z)=(%d, %d, %d) with baseSize %d, startTime=%f and endTime=%f",
-                ARG.ifx, ARG.ify, ARG.ifz, baseSize, ARG.startTime,
-                ARG.endTime));
+            csv.writeLine(io::xprintf("perfviz-fourier generated AIF (x,y,z)=(%d, %d, %d) with "
+                                      "baseSize %d, startTime=%f and endTime=%f",
+                                      ARG.ifx, ARG.ify, ARG.ifz, baseSize, ARG.startTime,
+                                      ARG.endTime));
             csv.writeVector(io::xprintf("time_harmonic%d_interp", baseSize), taxis);
             csv.writeVector(io::xprintf("value_harmonic%d_interp", baseSize), plotme);
             csv.close();
@@ -268,8 +280,8 @@ int main(int argc, char* argv[])
     ti.computePseudoinverse(convolutionMatrix, ARG.granularity);
     // Test what is the projection of convolutionMatrix to the last element of aif
 
-    util::TimeSeriesDiscretizer tsd(concentration, dimx, dimy, dimz, ARG.startTime, ARG.endTime,
-                                    ARG.secLength, ARG.threads);
+    util::TimeSeriesDiscretizer tsd(concentration, ARG.dimx, ARG.dimy, ARG.dimz, ARG.startTime,
+                                    ARG.endTime, ARG.secLength, ARG.threads);
     if(ARG.vizualize)
     {
         tsd.visualizeConvolutionKernel(ARG.ifx, ARG.ify, ARG.ifz, ARG.granularity,
@@ -277,7 +289,7 @@ int main(int argc, char* argv[])
     }
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> ttp_w
         = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-            io::xprintf("%s/TTP.den", ARG.outputFolder.c_str()), dimx, dimy, dimz);
+            io::xprintf("%s/TTP.den", ARG.outputFolder.c_str()), ARG.dimx, ARG.dimy, ARG.dimz);
     LOGD << "TTP computation.";
     tsd.computeTTP(ARG.granularity, ttp_w, aif);
     if(!ARG.stopAfterTTP)
@@ -285,13 +297,13 @@ int main(int argc, char* argv[])
         LOGD << "CBV, CBF and MTT computation.";
         std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbf_w
             = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-                io::xprintf("%s/CBF.den", ARG.outputFolder.c_str()), dimx, dimy, dimz);
+                io::xprintf("%s/CBF.den", ARG.outputFolder.c_str()), ARG.dimx, ARG.dimy, ARG.dimz);
         std::shared_ptr<io::AsyncFrame2DWritterI<float>> cbv_w
             = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-                io::xprintf("%s/CBV.den", ARG.outputFolder.c_str()), dimx, dimy, dimz);
+                io::xprintf("%s/CBV.den", ARG.outputFolder.c_str()), ARG.dimx, ARG.dimy, ARG.dimz);
         std::shared_ptr<io::AsyncFrame2DWritterI<float>> mtt_w
             = std::make_shared<io::DenAsyncFrame2DWritter<float>>(
-                io::xprintf("%s/MTT.den", ARG.outputFolder.c_str()), dimx, dimy, dimz);
+                io::xprintf("%s/MTT.den", ARG.outputFolder.c_str()), ARG.dimx, ARG.dimy, ARG.dimz);
         LOGI << io::xprintf("CBF time is set as %f.", ARG.cbf_time);
         tsd.computePerfusionParameters(ARG.granularity, convolutionMatrix, cbf_w, cbv_w, mtt_w,
                                        ARG.cbf_time);

@@ -86,6 +86,15 @@ public:
      */
     void frameTimeSeries(const uint16_t z, const uint32_t granularity, float* val) override;
 
+    /**Function to evaluate the value of Engineer polynomial without constant at given point
+     *(x,y,z,intervalStart).
+     *
+     *@param[in] x Zero based x coordinate of the volume.
+     *@param[in] y Zero based y coordinate of the volume.
+     *@param[in] z Zero based z coordinate of the volume.
+     */
+    float valueAt_intervalStart(const uint16_t x, const uint16_t y, const uint16_t z);
+
 private:
     /**Function to evaluate the value of Engineer polynomial without constant at given point
      *(x,y,z,t).
@@ -106,15 +115,6 @@ private:
      *@param[out] val Prealocated array to put the values at particular times.
      */
     void frameAt_customOffset(const uint16_t z, const float t, float* offset, float* val);
-
-    /**Function to evaluate the value of Engineer polynomial without constant at given point
-     *(x,y,z,intervalStart).
-     *
-     *@param[in] x Zero based x coordinate of the volume.
-     *@param[in] y Zero based y coordinate of the volume.
-     *@param[in] z Zero based z coordinate of the volume.
-     */
-    float valueAt_intervalStart(const uint16_t x, const uint16_t y, const uint16_t z);
 
     /**Function to evaluate the value of Engineer polynomial without constant at given frame
      *(z,t).
