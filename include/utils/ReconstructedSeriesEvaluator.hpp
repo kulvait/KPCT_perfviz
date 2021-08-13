@@ -249,7 +249,7 @@ ReconstructedSeriesEvaluator::ReconstructedSeriesEvaluator(std::string attenuati
                                                            uint32_t sweepCount,
                                                            float sweepTime,
                                                            float sweepOffset)
-    : Attenuation4DEvaluatorI(sweepOffset, (sweepCount-1) * sweepTime + sweepOffset)
+    : Attenuation4DEvaluatorI(sweepOffset, (sweepCount - 1) * sweepTime + sweepOffset)
     , sweepTime(sweepTime)
     , sweepOffset(sweepOffset)
 {
@@ -485,25 +485,42 @@ void ReconstructedSeriesEvaluator::frameTimeSeries(const uint16_t z,
                                                    const uint32_t granularity,
                                                    float* val)
 {
-    std::unique_lock<std::mutex> lock(globalsAccess);
     updateStoredDiscretization(granularity);
-    updateStoredVals(z);
+    std::vector<std::shared_ptr<io::Frame2DI<float>>> localFrames;
+    double* breakpointsYLocal = new double[breakpointsNum];
+    double* storedInterpolationBufferLocal = new double[granularity];
+    double* storedTimeDiscretizationLocal = new double[granularity];
+    timeDiscretizationDouble(granularity, storedTimeDiscretizationLocal);
+
+    std::shared_ptr<math::SplineFitter> fitter = std::make_shared<math::SplineFitter>(
+        attenuationVolumes.size(), DF_PP_CUBIC, DF_PP_AKIMA);
+    for(uint32_t i = 0; i != breakpointsNum; i++)
+    {
+        localFrames.push_back(attenuationVolumes[i]->readFrame(z));
+    }
     for(int x = 0; x != dimx; x++)
     {
         for(int y = 0; y != dimy; y++)
         {
-            fillBreakpointsY(x, y);
-            fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
+            for(uint32_t i = 0; i != breakpointsNum; i++)
+            {
+                breakpointsYLocal[i] = localFrames[i]->get(x, y);
+            }
+            fitter->buildSpline(breakpointsT, breakpointsYLocal, bc_type, bc);
             // See
-            // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
-            fitter->interpolateAt(granularity, storedTimeDiscretization, storedInterpolationBuffer);
-            float v0 = storedInterpolationBuffer[0];
+            //https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
+            fitter->interpolateAt(granularity, storedTimeDiscretizationLocal,
+                                  storedInterpolationBufferLocal);
+            float v0 = storedInterpolationBufferLocal[0];
             for(uint32_t i = 0; i != granularity; i++)
             {
                 val[y * dimx + x + i * dimx * dimy]
-                    = std::max(float(0), float(storedInterpolationBuffer[i] - v0));
+                    = std::max(float(0), float(storedInterpolationBufferLocal[i] - v0));
             }
         }
     }
+    delete[] breakpointsYLocal;
+    delete[] storedInterpolationBufferLocal;
+    delete[] storedTimeDiscretizationLocal;
 }
 } // namespace CTL::util

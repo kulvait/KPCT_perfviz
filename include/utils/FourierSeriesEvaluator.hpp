@@ -4,9 +4,9 @@
 #include <mutex>
 #include <vector>
 
-#include "utils/Attenuation4DEvaluatorI.hpp"
-#include "FUN/VectorFunctionI.h"
 #include "FUN/FourierSeries.hpp"
+#include "FUN/VectorFunctionI.h"
+#include "utils/Attenuation4DEvaluatorI.hpp"
 
 namespace CTL::util {
 
@@ -177,7 +177,7 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(std::vector<std::string> coeffici
     std::shared_ptr<io::Frame2DReaderI<float>> pr;
     for(std::size_t i = 0; i < basisSize; i++)
     {
-        pr = std::make_shared<io::DenFrame2DReader<float>>(coefficientVolumeFiles[i]);
+        pr = std::make_shared<io::DenFrame2DReader<float>>(coefficientVolumeFiles[i], 100);
         coefficientVolumes.push_back(pr);
     }
     io::DenFileInfo di(coefficientVolumeFiles[0]);
@@ -415,13 +415,51 @@ void FourierSeriesEvaluator::frameTimeSeries(const uint16_t z,
                                              const uint32_t granularity,
                                              float* val)
 {
+    std::fill_n(val, dimx * dimy * granularity, float(0.0));
     double time = intervalStart;
     double increment = (intervalEnd - intervalStart) / double(granularity - 1);
-    frameAt_intervalStart(z, val);
+    std::vector<std::shared_ptr<io::Frame2DI<float>>> localFrames;
+    float* localFourierCoeff = new float[basisSize - 1];
+    for(uint32_t i = 1; i < basisSize; i++)
+    {
+        localFrames.emplace_back(coefficientVolumes[i]->readFrame(z));
+    }
+    for(int y = 0; y != dimy; y++)
+    {
+        for(int x = 0; x != dimx; x++)
+        {
+            for(uint32_t d = 1; d < basisSize; d++)
+            {
+                val[y * dimx + x] += fourierCoefficientsAtIntervalStartWithoutConstant[d - 1]
+                    * localFrames[d - 1]->get(x, y);
+            }
+        }
+    }
+    uint32_t offset;
     for(uint32_t i = 1; i < granularity; i++)
     {
         time += increment;
-        frameAt_customOffset(z, time, val, &val[i * dimx * dimy]);
+        offset = i * dimx * dimy;
+        fourierEvaluatorWithoutConstant->valuesAt(time, localFourierCoeff);
+        for(int y = 0; y != dimy; y++)
+        {
+            for(int x = 0; x != dimx; x++)
+            {
+                for(uint32_t d = 1; d < basisSize; d++)
+                {
+                    val[offset + y * dimx + x]
+                        += localFourierCoeff[d - 1] * localFrames[d - 1]->get(x, y);
+                }
+                val[offset + y * dimx + x] -= val[y * dimx + x];
+                if(negativeAsZero)
+                {
+                    if(val[offset + y * dimx + x] < 0.0f)
+                    {
+                        val[offset + y * dimx + x] = 0.0f;
+                    }
+                }
+            }
+        }
     }
     std::fill_n(val, dimx * dimy, float(0.0)); // At time zero is concentration zero
 }
