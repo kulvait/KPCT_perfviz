@@ -7,7 +7,7 @@
 #include "FUN/StepFunction.hpp"
 #include "utils/Attenuation4DEvaluatorI.hpp"
 
-namespace CTL::util {
+namespace KCT::util {
 
 class EngineerSeriesEvaluator : public Attenuation4DEvaluatorI
 {
@@ -256,7 +256,7 @@ float EngineerSeriesEvaluator::valueAt(const uint16_t x,
 {
     float val0 = valueAt_intervalStart(x, y, z);
     float v = valueAt_withoutOffset(x, y, z, t);
-    return std::max(float(0), v - val0);
+    return std::max(v - val0, 0.0f);
 }
 
 void EngineerSeriesEvaluator::updateEngineerValuesStored(const float t)
@@ -398,4 +398,4 @@ void EngineerSeriesEvaluator::frameTimeSeries(const uint16_t z,
     }
     std::fill_n(val, dimx * dimy, float(0.0)); // At time zero is concentration zero
 }
-} // namespace CTL::util
+} // namespace KCT::util

@@ -26,8 +26,8 @@
 namespace plt = matplotlibcpp;
 #endif
 
-using namespace CTL;
-using namespace CTL::util;
+using namespace KCT;
+using namespace KCT::util;
 
 /// Arguments of the main function.
 struct Args : public ArgumentsThreading, public PerfusionVizualizationArguments

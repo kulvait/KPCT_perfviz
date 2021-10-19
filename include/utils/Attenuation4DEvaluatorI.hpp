@@ -1,6 +1,6 @@
 #pragma once
 
-namespace CTL::util {
+namespace KCT::util {
 
 class Attenuation4DEvaluatorI
 {
@@ -82,4 +82,4 @@ protected:
     float intervalStart;
     float intervalEnd;
 };
-} // namespace CTL::util
+} // namespace KCT::util

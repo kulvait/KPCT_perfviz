@@ -12,7 +12,7 @@
 
 namespace plt = matplotlibcpp;
 
-namespace CTL::util {
+namespace KCT::util {
 
 class CTEvaluator : public Attenuation4DEvaluatorI
 {
@@ -635,4 +635,4 @@ void CTEvaluator::frameTimeSeries(const uint16_t z, const uint32_t granularity, 
         }
     }
 }
-} // namespace CTL::util
+} // namespace KCT::util

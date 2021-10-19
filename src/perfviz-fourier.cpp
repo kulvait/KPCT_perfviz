@@ -25,8 +25,8 @@
 
 namespace plt = matplotlibcpp;
 
-using namespace CTL;
-using namespace CTL::util;
+using namespace KCT;
+using namespace KCT::util;
 
 /// Arguments of the main function.
 class Args : public ArgumentsThreading, public PerfusionVizualizationArguments

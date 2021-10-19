@@ -60,8 +60,23 @@ add_custom_target(formatWebkit
 ./formatWebkit
 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
-SET(PERFVIZ_POLYNOMYAL_SOURCES src/perfviz-polynomial.cpp src/PerfusionVizualizationArguments.cpp)
-add_executable(perfvizPolynomial ${PERFVIZ_POLYNOMYAL_SOURCES})
+SET(PERFVIZ_TIMESERIES_SOURCES src/perfviz-timeseries.cpp src/PerfusionVizualizationArguments.cpp)
+add_executable(perfvizTimeseries ${PERFVIZ_TIMESERIES_SOURCES})
+set_target_properties(
+    perfvizTimeseries
+    PROPERTIES 
+        OUTPUT_NAME "perfviz-timeseries"
+        SUFFIX ""
+)
+target_git_version_init(perfvizTimeseries)
+target_link_libraries(perfvizTimeseries ctiol)
+target_link_libraries(perfvizTimeseries ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(perfvizTimeseries ${MKL_CORE_LIBRARY})
+target_link_libraries(perfvizTimeseries ${Python3_LIBRARIES})
+install (TARGETS perfvizTimeseries RUNTIME DESTINATION .)
+
+SET(PERFVIZ_POLYNOMIAL_SOURCES src/perfviz-polynomial.cpp src/PerfusionVizualizationArguments.cpp)
+add_executable(perfvizPolynomial ${PERFVIZ_POLYNOMIAL_SOURCES})
 set_target_properties(
     perfvizPolynomial
     PROPERTIES 

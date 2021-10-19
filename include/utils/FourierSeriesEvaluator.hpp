@@ -8,7 +8,7 @@
 #include "FUN/VectorFunctionI.h"
 #include "utils/Attenuation4DEvaluatorI.hpp"
 
-namespace CTL::util {
+namespace KCT::util {
 
 class FourierSeriesEvaluator : public Attenuation4DEvaluatorI
 {
@@ -463,4 +463,4 @@ void FourierSeriesEvaluator::frameTimeSeries(const uint16_t z,
     }
     std::fill_n(val, dimx * dimy, float(0.0)); // At time zero is concentration zero
 }
-} // namespace CTL::util
+} // namespace KCT::util

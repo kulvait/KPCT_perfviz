@@ -9,7 +9,7 @@
 #include "SPLINE/SplineFitter.hpp"
 #include "utils/Attenuation4DEvaluatorI.hpp"
 
-namespace CTL::util {
+namespace KCT::util {
 
 class ReconstructedSeriesEvaluator : public Attenuation4DEvaluatorI
 {
@@ -523,4 +523,4 @@ void ReconstructedSeriesEvaluator::frameTimeSeries(const uint16_t z,
     delete[] storedInterpolationBufferLocal;
     delete[] storedTimeDiscretizationLocal;
 }
-} // namespace CTL::util
+} // namespace KCT::util

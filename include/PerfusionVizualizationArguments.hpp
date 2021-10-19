@@ -3,7 +3,7 @@
 #include "PROG/Arguments.hpp"
 #include "rawop.h"
 
-namespace CTL::util {
+namespace KCT::util {
 
 class PerfusionVizualizationArguments : public virtual Arguments
 {
@@ -61,4 +61,4 @@ protected:
     void addVizualizationGroup();
     void addVizualizationArgs(bool staticReconstructionVisualization);
 };
-} // namespace CTL::util
+} // namespace KCT::util

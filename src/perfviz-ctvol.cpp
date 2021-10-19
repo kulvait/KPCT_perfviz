@@ -23,7 +23,7 @@
 namespace plt = matplotlibcpp;
 #endif
 
-using namespace CTL;
+using namespace KCT;
 
 /// Arguments of the main function.
 struct Arguments

@@ -19,7 +19,7 @@
 #include "utils/TimeSeriesDiscretizer.hpp"
 #include <regex>
 
-using namespace CTL;
+using namespace KCT;
 
 /// Arguments of the main function.
 struct Arguments

@@ -8,7 +8,7 @@
 #include "FUN/LegendrePolynomialsExplicit.hpp"
 #include "utils/Attenuation4DEvaluatorI.hpp"
 
-namespace CTL::util {
+namespace KCT::util {
 
 enum polynomialType { Legendre = 0, Chebyshev = 1 };
 
@@ -431,4 +431,4 @@ void PolynomialSeriesEvaluator::frameTimeSeries(const uint16_t z,
     }
     std::fill_n(val, dimx * dimy, float(0.0)); // At time zero is concentration zero
 }
-} // namespace CTL::util
+} // namespace KCT::util

@@ -1,6 +1,6 @@
 #include "PerfusionVizualizationArguments.hpp"
 
-namespace CTL::util {
+namespace KCT::util {
 
 PerfusionVizualizationArguments::PerfusionVizualizationArguments(int argc,
                                                                  char* argv[],
@@ -137,4 +137,4 @@ void PerfusionVizualizationArguments::addSettingsArgs()
                                       lambda_rel));
 }
 
-} // namespace CTL::util
+} // namespace KCT::util

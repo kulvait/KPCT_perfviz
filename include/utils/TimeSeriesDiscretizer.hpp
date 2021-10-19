@@ -11,7 +11,7 @@
 
 namespace plt = matplotlibcpp;
 
-namespace CTL::util {
+namespace KCT::util {
 
 class TimeSeriesDiscretizer
 {
@@ -331,4 +331,4 @@ private:
     uint16_t threads;
 };
 
-} // namespace CTL::util
+} // namespace KCT::util
