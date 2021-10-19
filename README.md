@@ -1,6 +1,16 @@
-# Perfusion visualization
+# KPCT Perfusion visualization
 
-Visualization of perfusion parameters. Computation of TTP, MTT, CBV, CBF.
+Visualization of perfusion parameters. Computation of TTP, MTT, CBV, CBF. Exporting volume series of time attenuation curves or time resolved CT volumes based on the underlying model.
+
+TST model of dimension reduction works with apriori-knowledge or engineer bases, two bases of real polynomials Legendre and Chebyshev and trigonometric functions.
+
+## Perfusion maps processing
+
+Deconvolution based model for computing these parameters is described in the paper [Time separation technique with the basis of trigonometric functions as an efficient method for flat detector CT brain perfusion imaging](https://arxiv.org/abs/2110.09438).
+
+It is derived from the model in [Fieselmann et.al. 2011](http://dx.doi.org/10.1155/2011/467563) but the CBF computation can be modified by so called CBF time parameter. Using this parameter and setting it to 6s in accordance to [DEFUSE3 study protocol](https://clinicaltrials.gov/ProvidedDocs/15/NCT02586415/Prot_001.pdf) shall make MTT a better indicator of colateral flow.
+
+
 
 ## Submodules
 
@@ -32,11 +42,11 @@ Testing framework. Licensed under Boost Software License 1.0.
 
 Threadpool library.
 
-### [CTIOL](ssh://git@gitlab.stimulate.ovgu.de:2200/vojtech.kulvait/CTIOL.git)
+### [CTIOL](https://github.com/kulvait/KCT_ctiol)
 
 Input output routines for asynchronous thread safe reading/writing CT data. The DEN format read/write is implemented.
 
-### [CTMAL](ssh://git@gitlab.stimulate.ovgu.de:2200/vojtech.kulvait/CTMAL.git)
+### [CTMAL](https://github.com/kulvait/KCT_ctmal)
 
 Mathematic/Algebraic algorithms for supporting CT data manipulation.
 
