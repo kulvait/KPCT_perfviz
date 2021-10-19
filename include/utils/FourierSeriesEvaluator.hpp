@@ -6,6 +6,7 @@
 
 #include "FUN/FourierSeries.hpp"
 #include "FUN/VectorFunctionI.h"
+#include "PROG/KCTException.hpp"
 #include "utils/Attenuation4DEvaluatorI.hpp"
 
 namespace KCT::util {
@@ -79,6 +80,17 @@ public:
      *at frame z.
      */
     void frameAt(const uint16_t z, const float t, float* val) override;
+
+    /**Function to evaluate the value of attenuation for the whole volume at point t.
+     *
+     * @param[in] t Time of evaluation.
+     * @param[out] volume Writter to write volume to
+     * @param[in] subtractZeroVolume If the values at zero shall be zeros and all other volumes
+     * shall be evaluated with respect to this. Good for representing TACs.
+     */
+    void volumeAt(const float t,
+                  std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                  const bool subtractZeroVolume = true) override;
 
     /**Function to evaluate time series of frames of attenuation coefficients.
      *
@@ -171,8 +183,7 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(std::vector<std::string> coeffici
         std::string ERR = io::xprintf("There must be at least one more function than constant, "
                                       "menas basisSize >= 2, but basisSize =%d.",
                                       basisSize);
-        LOGE << ERR;
-        throw std::runtime_error(ERR);
+        KCTERR(ERR);
     }
     std::shared_ptr<io::Frame2DReaderI<float>> pr;
     for(std::size_t i = 0; i < basisSize; i++)
@@ -191,8 +202,7 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(std::vector<std::string> coeffici
         {
 
             std::string ERR = "There are incompatible coefficients!";
-            LOGE << ERR;
-            throw std::runtime_error(ERR);
+            KCTERR(ERR);
         }
     }
     fourierEvaluatorWithoutConstant = std::make_shared<util::FourierSeries>(
@@ -357,6 +367,64 @@ void FourierSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val
             } else
             {
                 val[y * dimx + x] = val[y * dimx + x] - valuesAtStart[y * dimx + x];
+            }
+        }
+    }
+}
+
+void FourierSeriesEvaluator::volumeAt(const float t,
+                                      std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                                      const bool subtractZeroVolume)
+{
+    io::BufferedFrame2D<float> frame(float(0), dimx, dimy);
+    io::BufferedFrame2D<float> frame_zero(float(0), dimx, dimy);
+    std::shared_ptr<io::Frame2DI<float>> frame_constant;
+    float val;
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    for(uint32_t z = 0; z != dimz; z++)
+    {
+        updateFramesStored(z);
+        if(subtractZeroVolume)
+        {
+            for(uint32_t y = 0; y != dimy; y++)
+            {
+                for(uint32_t x = 0; x != dimx; x++)
+                {
+                    val = 0.0f;
+                    for(uint32_t d = 1; d < basisSize; d++)
+                    {
+                        val += fourierCoefficientsAtIntervalStartWithoutConstant[d - 1]
+                            * framesStored[d]->get(x, y);
+                    }
+                    frame_zero.set(val, x, y);
+                }
+            }
+        }
+        updateCoefficientsStored(t);
+        for(uint32_t y = 0; y != dimy; y++)
+        {
+            for(uint32_t x = 0; x != dimx; x++)
+            {
+                val = 0.0f;
+                for(uint32_t d = 1; d < basisSize; d++)
+                {
+                    val += fourierCoefficientsAtStoredTimeWithoutConstant[d - 1]
+                        * framesStored[d]->get(x, y);
+                }
+                if(subtractZeroVolume)
+                {
+                    if(negativeAsZero)
+                    {
+                        frame.set(std::max(0.0f, val - frame_zero.get(x, y)), x, y);
+                    } else
+                    {
+                        frame.set(val - frame_zero.get(x, y), x, y);
+                    }
+                } else
+                {
+                    val += framesStored[0]->get(x, y);
+                    frame.set(val, x, y);
+                }
             }
         }
     }

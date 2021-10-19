@@ -98,6 +98,17 @@ public:
      */
     void frameAt(const uint16_t z, const float t, float* val) override;
 
+    /**Function to evaluate the value of attenuation for the whole volume at point t.
+     *
+     * @param[in] t Time of evaluation.
+     * @param[out] volume Writter to write volume to
+     * @param[in] subtractZeroVolume If the values at zero shall be zeros and all other volumes
+     * shall be evaluated with respect to this. Good for representing TACs.
+     */
+    void volumeAt(const float t,
+                  std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                  const bool subtractZeroVolume = true) override;
+
     /**Function to evaluate time series of frames of attenuation coefficients.
      *
      *@param[in] vz Zero based z coordinate of the volume.
@@ -635,4 +646,44 @@ void CTEvaluator::frameTimeSeries(const uint16_t z, const uint32_t granularity, 
         }
     }
 }
+
+void CTEvaluator::volumeAt(const float t,
+                           std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                           const bool subtractZeroVolume)
+{
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    double v, at;
+    if(allowExtrapolation)
+    {
+        at = (double)t;
+    } else
+    {
+        at = std::max(breakpointsT[0], std::min(breakpointsT[breakpointsNum - 1], (double)t));
+    }
+    float startOffset = 0.0;
+    io::BufferedFrame2D<float> frame(float(0), dimx, dimy);
+    for(int z = 0; z != dimz; z++)
+    {
+        updateStoredVals(z);
+        for(int y = 0; y != dimy; y++)
+        {
+            for(int x = 0; x != dimx; x++)
+            {
+                fillBreakpointsY(x, y);
+                fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
+                fitter->interpolateAt(1, &at, &v);
+                if(subtractZeroVolume)//Ignoring zeroStartOffset value of the object
+                {
+                    startOffset = storedVals[0]->get(x, y);
+                    frame.set(v - startOffset, x, y);
+                } else
+                {
+                    frame.set(v, x, y);
+                }
+            }
+        }
+        volume->writeFrame(frame, z);
+    }
+}
+
 } // namespace KCT::util

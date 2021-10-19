@@ -77,6 +77,17 @@ public:
      */
     void frameAt(const uint16_t z, const float t, float* val) override;
 
+    /**Function to evaluate the value of attenuation for the whole volume at point t.
+     *
+     * @param[in] t Time of evaluation.
+     * @param[out] volume Writter to write volume to
+     * @param[in] subtractZeroVolume If the values at zero shall be zeros and all other volumes
+     * shall be evaluated with respect to this. Good for representing TACs.
+     */
+    void volumeAt(const float t,
+                  std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                  const bool subtractZeroVolume = true) override;
+
     /**Function to evaluate time series of frames of attenuation coefficients.
      *
      *@param[in] vz Zero based z coordinate of the volume.
@@ -319,7 +330,7 @@ void EngineerSeriesEvaluator::frameAt(const uint16_t z, const float t, float* va
     updateFramesStored(z);
     std::fill_n(valuesAtStart, dimx * dimy, float(0.0));
     std::fill_n(val, dimx * dimy, float(0.0));
-    // Initialize values of legendre polynomials at the time intervalStart
+    // Values at intervalStart
     for(int y = 0; y != dimy; y++)
     {
         for(int x = 0; x != dimx; x++)
@@ -341,6 +352,55 @@ void EngineerSeriesEvaluator::frameAt(const uint16_t z, const float t, float* va
                 val[y * dimx + x] += basisCoefficientsStored[d] * framesStored[d]->get(x, y);
             }
             val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - valuesAtStart[y * dimx + x]);
+        }
+    }
+}
+void EngineerSeriesEvaluator::volumeAt(const float t,
+                                       std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                                       const bool subtractZeroVolume)
+{
+    io::BufferedFrame2D<float> frame(float(0), dimx, dimy);
+    io::BufferedFrame2D<float> frame_zero(float(0), dimx, dimy);
+    std::shared_ptr<io::Frame2DI<float>> frame_constant;
+    float val;
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    for(uint32_t z = 0; z != dimz; z++)
+    {
+        updateFramesStored(z);
+        if(subtractZeroVolume)
+        {
+            for(uint32_t y = 0; y != dimy; y++)
+            {
+                for(uint32_t x = 0; x != dimx; x++)
+                {
+                    val = 0.0f;
+                    for(uint32_t d = 0; d != coefficientCount; d++)
+                    {
+                        val += basisCoefficientsStart[d] * framesStored[d]->get(x, y);
+                    }
+                    frame_zero.set(val, x, y);
+                }
+            }
+        }
+        updateEngineerValuesStored(t);
+        for(uint32_t y = 0; y != dimy; y++)
+        {
+            for(uint32_t x = 0; x != dimx; x++)
+            {
+                val = 0.0f;
+                for(uint32_t d = 0; d != coefficientCount; d++)
+                {
+                    val += basisCoefficientsStored[d] * framesStored[d]->get(x, y);
+                }
+                if(subtractZeroVolume)
+                {
+                    frame.set(val - frame_zero.get(x, y), x, y);
+                } else
+                {
+                    val += framesStored[0]->get(x, y);
+                    frame.set(val, x, y);
+                }
+            }
         }
     }
 }

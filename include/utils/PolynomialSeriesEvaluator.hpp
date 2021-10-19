@@ -6,6 +6,7 @@
 
 #include "FUN/ChebyshevPolynomialsExplicit.hpp"
 #include "FUN/LegendrePolynomialsExplicit.hpp"
+#include "PROG/KCTException.hpp"
 #include "utils/Attenuation4DEvaluatorI.hpp"
 
 namespace KCT::util {
@@ -83,6 +84,17 @@ public:
      */
     void frameAt(const uint16_t z, const float t, float* val) override;
 
+    /**Function to evaluate the value of attenuation for the whole volume at point t.
+     *
+     * @param[in] t Time of evaluation.
+     * @param[out] volume Writter to write volume to
+     * @param[in] subtractZeroVolume If the values at zero shall be zeros and all other volumes
+     * shall be evaluated with respect to this. Good for representing TACs.
+     */
+    void volumeAt(const float t,
+                  std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                  const bool subtractZeroVolume = true) override;
+
     /**Function to evaluate time series of frames of attenuation coefficients.
      *
      *@param[in] vz Zero based z coordinate of the volume.
@@ -132,6 +144,7 @@ private:
 
     uint32_t degree;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefficientVolumes;
+    std::shared_ptr<io::Frame2DReaderI<float>> constantCoefficientVolume;
     uint32_t dimx, dimy, dimz;
     std::shared_ptr<util::VectorFunctionI> polynomialBasisEvaluator;
     float* valuesAtStart;
@@ -171,16 +184,21 @@ PolynomialSeriesEvaluator::PolynomialSeriesEvaluator(
     , negativeAsZero(negativeAsZero)
     , pt(pt)
 {
+    std::string err;
     if(coefficientVolumeFiles.size() != degree + 1)
     {
-        io::throwerr("Number of files with polynomial coefficients have to be equal to degree + 1, "
-                     "but is %d and degree=%d.",
-                     coefficientVolumeFiles.size(), degree);
+        err = io::xprintf(
+            "Number of files with polynomial coefficients have to be equal to degree + 1, "
+            "but is %d and degree=%d.",
+            coefficientVolumeFiles.size(), degree);
+        KCTERR(err);
     }
     if(degree < 1)
     {
-        io::throwerr("There must be at least linear polynomial to capture time behavior but we "
-                     "have polynomial degree 0");
+        err = io::xprintf(
+            "There must be at least linear polynomial to capture time behavior but we "
+            "have polynomial degree 0");
+        KCTERR(err);
     }
     std::shared_ptr<io::Frame2DReaderI<float>> pr;
     for(std::size_t i = 0; i != degree; i++)
@@ -188,6 +206,8 @@ PolynomialSeriesEvaluator::PolynomialSeriesEvaluator(
         pr = std::make_shared<io::DenFrame2DReader<float>>(coefficientVolumeFiles[i + 1]);
         coefficientVolumes.push_back(pr);
     }
+    constantCoefficientVolume
+        = std::make_shared<io::DenFrame2DReader<float>>(coefficientVolumeFiles[0]);
     io::DenFileInfo di(coefficientVolumeFiles[0]);
     dimx = di.dimx();
     dimy = di.dimy();
@@ -197,7 +217,8 @@ PolynomialSeriesEvaluator::PolynomialSeriesEvaluator(
     {
         if(f->dimx() != dimx || f->dimy() != dimy || f->dimz() != dimz)
         {
-            io::throwerr("There are incompatible coefficients!");
+            err = io::xprintf("There are incompatible coefficients!");
+            KCTERR(err);
         }
     }
     if(pt == polynomialType::Legendre)
@@ -412,6 +433,65 @@ void PolynomialSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* v
             {
                 val[y * dimx + x]
                     += polynomialValuesAtIntervalStart[d] * framesStored[d]->get(x, y);
+            }
+        }
+    }
+}
+
+void PolynomialSeriesEvaluator::volumeAt(const float t,
+                                         std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                                         const bool subtractZeroVolume)
+{
+    io::BufferedFrame2D<float> frame(float(0), dimx, dimy);
+    io::BufferedFrame2D<float> frame_zero(float(0), dimx, dimy);
+    std::shared_ptr<io::Frame2DI<float>> frame_constant;
+    float val;
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    for(uint32_t z = 0; z != dimz; z++)
+    {
+        updateFramesStored(z);
+        if(subtractZeroVolume)
+        {
+            for(uint32_t y = 0; y != dimy; y++)
+            {
+                for(uint32_t x = 0; x != dimx; x++)
+                {
+                    val = 0.0f;
+                    for(uint32_t d = 0; d != degree; d++)
+                    {
+                        val += polynomialValuesAtIntervalStart[d] * framesStored[d]->get(x, y);
+                    }
+                    frame_zero.set(val, x, y);
+                }
+            }
+        } else
+        {
+            frame_constant = constantCoefficientVolume->readFrame(z);
+        }
+        updatePolynomialValuesStoredToNewTimepoint(t);
+        for(uint32_t y = 0; y != dimy; y++)
+        {
+            for(uint32_t x = 0; x != dimx; x++)
+            {
+                val = 0.0f;
+                for(uint32_t d = 0; d != degree; d++)
+                {
+                    val += polynomialValuesAtStoredTime[d] * framesStored[d]->get(x, y);
+                }
+                if(subtractZeroVolume)
+                {
+                    if(negativeAsZero)
+                    {
+                        frame.set(std::max(0.0f, val - frame_zero.get(x, y)), x, y);
+                    } else
+                    {
+                        frame.set(val - frame_zero.get(x, y), x, y);
+                    }
+                } else
+                {
+                    val += frame_constant->get(x, y);
+                    frame.set(val, x, y);
+                }
             }
         }
     }

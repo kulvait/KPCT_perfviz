@@ -69,6 +69,18 @@ public:
      */
     virtual void frameAt(const uint16_t z, const float t, float* val) = 0;
 
+    /**Function to evaluate the value of attenuation for the whole volume at point t.
+     *
+     * @param[in] t Time of evaluation.
+     * @param[out] volume Writter to write volume to
+     * @param[in] subtractZeroVolume If the values at zero shall be zeros and all other volumes
+     * shall be evaluated with respect to this. Good for representing TACs.
+     */
+    virtual void volumeAt(const float t,
+                          std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                          const bool subtractZeroVolume = true)
+        = 0;
+
     /**Function to evaluate time series of frames of attenuation coefficients.
      *
      *@param[in] vz Zero based z coordinate of the volume.

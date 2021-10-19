@@ -106,6 +106,17 @@ public:
      */
     void frameAt(const uint16_t z, const float t, float* val) override;
 
+    /**Function to evaluate the value of attenuation for the whole volume at point t.
+     *
+     * @param[in] t Time of evaluation.
+     * @param[out] volume Writter to write volume to
+     * @param[in] subtractZeroVolume If the values at zero shall be zeros and all other volumes
+     * shall be evaluated with respect to this. Good for representing TACs.
+     */
+    void volumeAt(const float t,
+                  std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                  const bool subtractZeroVolume = true) override;
+
     /**Function to evaluate time series of frames of attenuation coefficients.
      *
      *@param[in] vz Zero based z coordinate of the volume.
@@ -481,6 +492,39 @@ void ReconstructedSeriesEvaluator::frameAt(const uint16_t z, const float t, floa
     }
 }
 
+void ReconstructedSeriesEvaluator::volumeAt(const float t,
+                                            std::shared_ptr<io::AsyncFrame2DWritterI<float>> volume,
+                                            const bool subtractZeroVolume)
+{
+    std::unique_lock<std::mutex> lock(globalsAccess);
+    double v, at;
+    at = (double)t;
+    float startOffset = 0.0f;
+    io::BufferedFrame2D<float> frame(float(0), dimx, dimy);
+    for(int z = 0; z != dimz; z++)
+    {
+        updateStoredVals(z);
+        for(int y = 0; y != dimy; y++)
+        {
+            for(int x = 0; x != dimx; x++)
+            {
+                fillBreakpointsY(x, y);
+                fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
+                fitter->interpolateAt(1, &at, &v);
+                if(subtractZeroVolume)
+                {
+                    startOffset = storedVals[0]->get(x, y);
+                    frame.set(v - startOffset, x, y);
+                } else
+                {
+                    frame.set(v, x, y);
+                }
+            }
+        }
+        volume->writeFrame(frame, z);
+    }
+}
+
 void ReconstructedSeriesEvaluator::frameTimeSeries(const uint16_t z,
                                                    const uint32_t granularity,
                                                    float* val)
@@ -492,8 +536,8 @@ void ReconstructedSeriesEvaluator::frameTimeSeries(const uint16_t z,
     double* storedTimeDiscretizationLocal = new double[granularity];
     timeDiscretizationDouble(granularity, storedTimeDiscretizationLocal);
 
-    std::shared_ptr<math::SplineFitter> fitter = std::make_shared<math::SplineFitter>(
-        attenuationVolumes.size(), DF_PP_CUBIC, DF_PP_AKIMA);
+    std::shared_ptr<math::SplineFitter> fitter
+        = std::make_shared<math::SplineFitter>(attenuationVolumes.size(), DF_PP_CUBIC, DF_PP_AKIMA);
     for(uint32_t i = 0; i != breakpointsNum; i++)
     {
         localFrames.push_back(attenuationVolumes[i]->readFrame(z));
@@ -508,7 +552,7 @@ void ReconstructedSeriesEvaluator::frameTimeSeries(const uint16_t z,
             }
             fitter->buildSpline(breakpointsT, breakpointsYLocal, bc_type, bc);
             // See
-            //https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
+            // https://software.intel.com/en-us/mkl-developer-reference-c-df-interpolate1d-df-interpolateex1d
             fitter->interpolateAt(granularity, storedTimeDiscretizationLocal,
                                   storedInterpolationBufferLocal);
             float v0 = storedInterpolationBufferLocal[0];
