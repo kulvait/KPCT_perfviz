@@ -17,9 +17,9 @@
 #include "SVD/TikhonovInverse.hpp"
 #include "stringFormatter.h"
 #include "utils/Attenuation4DEvaluatorI.hpp"
-#include "utils/PolynomialSeriesEvaluator.hpp"
-#include "utils/FourierSeriesEvaluator.hpp"
 #include "utils/EngineerSeriesEvaluator.hpp"
+#include "utils/FourierSeriesEvaluator.hpp"
+#include "utils/PolynomialSeriesEvaluator.hpp"
 #include "utils/ReconstructedSeriesEvaluator.hpp"
 #include "utils/TimeSeriesDiscretizer.hpp"
 

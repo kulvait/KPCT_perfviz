@@ -66,7 +66,7 @@ public:
      *
      * @return
      */
-    std::vector<double> nativeValuesIn(const uint16_t x, const uint16_t y, const uint16_t z);
+    std::vector<double> nativeValuesIn(const uint32_t x, const uint32_t y, const uint32_t z);
 
     /**Function to evaluate time series in given point.
      *
@@ -76,15 +76,15 @@ public:
      *@param[in] granularity Number of time points to fill in aif array with.
      *@param[out] aif Prealocated array to put the values at particular times.
      */
-    void timeSeriesIn(const uint16_t x,
-                      const uint16_t y,
-                      const uint16_t z,
+    void timeSeriesIn(const uint32_t x,
+                      const uint32_t y,
+                      const uint32_t z,
                       const uint32_t granularity,
                       float* aif) override;
 
-    void timeSeriesNativeNoOffsetNoTruncationIn(const uint16_t x,
-                                                const uint16_t y,
-                                                const uint16_t z,
+    void timeSeriesNativeNoOffsetNoTruncationIn(const uint32_t x,
+                                                const uint32_t y,
+                                                const uint32_t z,
                                                 const uint32_t granularity,
                                                 float* aif);
 
@@ -95,7 +95,7 @@ public:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[in] t Time of evaluation.
      */
-    float valueAt(const uint16_t x, const uint16_t y, const uint16_t z, const float t) override;
+    float valueAt(const uint32_t x, const uint32_t y, const uint32_t z, const float t) override;
 
     /**Function to evaluate the value of attenuation for the whole frame (z,t).
      *
@@ -104,7 +104,7 @@ public:
      *@param[out] val Prealocated array of size dimx*dimy to put the values of the frame at time t
      *at frame z.
      */
-    void frameAt(const uint16_t z, const float t, float* val) override;
+    void frameAt(const uint32_t z, const float t, float* val) override;
 
     /**Function to evaluate the value of attenuation for the whole volume at point t.
      *
@@ -124,7 +124,7 @@ public:
      *@param[out] val Prealocated array to put the values at particular times of the size
      *granularity*dimx*dimy.
      */
-    void frameTimeSeries(const uint16_t z, const uint32_t granularity, float* val) override;
+    void frameTimeSeries(const uint32_t z, const uint32_t granularity, float* val) override;
 
 private:
     void initialize(std::vector<std::string>& coefficientVolumeFiles);
@@ -144,7 +144,7 @@ private:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[in] t Time of evaluation.
      */
-    float valueAt_withoutOffset(const uint16_t x, const uint16_t y, const uint16_t z, float t);
+    float valueAt_withoutOffset(const uint32_t x, const uint32_t y, const uint32_t z, float t);
 
     /**Function to evaluate the value of Engineer polynomial without constant at given point
      *(x,y,z,intervalStart).
@@ -153,7 +153,7 @@ private:
      *@param[in] y Zero based y coordinate of the volume.
      *@param[in] z Zero based z coordinate of the volume.
      */
-    float valueAt_intervalStart(const uint16_t x, const uint16_t y, const uint16_t z);
+    float valueAt_intervalStart(const uint32_t x, const uint32_t y, const uint32_t z);
 
     /**Function to evaluate the value of Engineer polynomial without constant at given frame
      *(z,t).
@@ -161,7 +161,7 @@ private:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[out] val Prealocated array to put the values at particular times.
      */
-    void frameAt_intervalStart(const uint16_t z, float* val);
+    void frameAt_intervalStart(const uint32_t z, float* val);
 
     /**
      * Fill breakpoint values for given coordinates.
@@ -169,13 +169,13 @@ private:
      * @param x
      * @param y
      */
-    void fillBreakpointsY(const uint16_t x, const uint16_t y);
+    void fillBreakpointsY(const uint32_t x, const uint32_t y);
 
-    uint16_t breakpointsNum;
+    uint32_t breakpointsNum;
     float sweepTime;
     float sweepOffset;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> attenuationVolumes;
-    uint16_t dimx, dimy, dimz;
+    uint32_t dimx, dimy, dimz;
     std::shared_ptr<math::SplineFitter> fitter;
 
     // Spline fitting settings
@@ -198,13 +198,13 @@ private:
     void updateStoredDiscretization(const uint32_t granularity);
 
     std::vector<std::shared_ptr<io::Frame2DI<float>>> storedVals;
-    uint16_t storedZ;
+    uint32_t storedZ;
     /** Function updates the framesStored to match given z frame.
      *
      *@param[in] z Frame to update.
      *
      */
-    void updateStoredVals(const uint16_t z);
+    void updateStoredVals(const uint32_t z);
 };
 
 void ReconstructedSeriesEvaluator::initialize(std::vector<std::string>& attenuationVolumeFiles)
@@ -321,7 +321,7 @@ void ReconstructedSeriesEvaluator::timeDiscretization(const uint32_t granularity
 }
 
 std::vector<double>
-ReconstructedSeriesEvaluator::nativeValuesIn(const uint16_t x, const uint16_t y, const uint16_t z)
+ReconstructedSeriesEvaluator::nativeValuesIn(const uint32_t x, const uint32_t y, const uint32_t z)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     std::vector<double> values;
@@ -380,7 +380,7 @@ void ReconstructedSeriesEvaluator::updateStoredDiscretization(const uint32_t gra
 bool ReconstructedSeriesEvaluator::isTimeDiscretizedEvenly() { return true; }
 
 void ReconstructedSeriesEvaluator::timeSeriesNativeNoOffsetNoTruncationIn(
-    const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)
+    const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t granularity, float* val)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateStoredDiscretization(granularity);
@@ -397,7 +397,7 @@ void ReconstructedSeriesEvaluator::timeSeriesNativeNoOffsetNoTruncationIn(
 }
 
 void ReconstructedSeriesEvaluator::timeSeriesIn(
-    const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)
+    const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t granularity, float* val)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateStoredDiscretization(granularity);
@@ -414,7 +414,7 @@ void ReconstructedSeriesEvaluator::timeSeriesIn(
     }
 }
 
-void ReconstructedSeriesEvaluator::fillBreakpointsY(const uint16_t x, const uint16_t y)
+void ReconstructedSeriesEvaluator::fillBreakpointsY(const uint32_t x, const uint32_t y)
 {
     for(uint32_t i = 0; i != breakpointsNum; i++)
     {
@@ -422,9 +422,9 @@ void ReconstructedSeriesEvaluator::fillBreakpointsY(const uint16_t x, const uint
     }
 }
 
-float ReconstructedSeriesEvaluator::valueAt(const uint16_t x,
-                                            const uint16_t y,
-                                            const uint16_t z,
+float ReconstructedSeriesEvaluator::valueAt(const uint32_t x,
+                                            const uint32_t y,
+                                            const uint32_t z,
                                             const float t)
 {
     float val0 = valueAt_intervalStart(x, y, z);
@@ -432,7 +432,7 @@ float ReconstructedSeriesEvaluator::valueAt(const uint16_t x,
     return std::max(float(0), v - val0);
 }
 
-void ReconstructedSeriesEvaluator::updateStoredVals(const uint16_t z)
+void ReconstructedSeriesEvaluator::updateStoredVals(const uint32_t z)
 {
 
     if(storedZ != z)
@@ -446,9 +446,9 @@ void ReconstructedSeriesEvaluator::updateStoredVals(const uint16_t z)
     }
 }
 
-float ReconstructedSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
-                                                          const uint16_t y,
-                                                          const uint16_t z)
+float ReconstructedSeriesEvaluator::valueAt_intervalStart(const uint32_t x,
+                                                          const uint32_t y,
+                                                          const uint32_t z)
 {
 
     std::unique_lock<std::mutex> lock(globalsAccess);
@@ -456,9 +456,9 @@ float ReconstructedSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
     return storedVals[0]->get(x, y);
 }
 
-float ReconstructedSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
-                                                          const uint16_t y,
-                                                          const uint16_t z,
+float ReconstructedSeriesEvaluator::valueAt_withoutOffset(const uint32_t x,
+                                                          const uint32_t y,
+                                                          const uint32_t z,
                                                           const float t)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
@@ -474,15 +474,15 @@ float ReconstructedSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
     return (float)val;
 }
 
-void ReconstructedSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val)
+void ReconstructedSeriesEvaluator::frameAt(const uint32_t z, const float t, float* val)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateStoredVals(z);
     double v;
     double at = (double)t;
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             fillBreakpointsY(x, y);
             fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
@@ -501,12 +501,12 @@ void ReconstructedSeriesEvaluator::volumeAt(const float t,
     at = (double)t;
     float startOffset = 0.0f;
     io::BufferedFrame2D<float> frame(float(0), dimx, dimy);
-    for(int z = 0; z != dimz; z++)
+    for(uint32_t z = 0; z != dimz; z++)
     {
         updateStoredVals(z);
-        for(int y = 0; y != dimy; y++)
+        for(uint32_t y = 0; y != dimy; y++)
         {
-            for(int x = 0; x != dimx; x++)
+            for(uint32_t x = 0; x != dimx; x++)
             {
                 fillBreakpointsY(x, y);
                 fitter->buildSpline(breakpointsT, breakpointsY, bc_type, bc);
@@ -525,7 +525,7 @@ void ReconstructedSeriesEvaluator::volumeAt(const float t,
     }
 }
 
-void ReconstructedSeriesEvaluator::frameTimeSeries(const uint16_t z,
+void ReconstructedSeriesEvaluator::frameTimeSeries(const uint32_t z,
                                                    const uint32_t granularity,
                                                    float* val)
 {
@@ -542,9 +542,9 @@ void ReconstructedSeriesEvaluator::frameTimeSeries(const uint16_t z,
     {
         localFrames.push_back(attenuationVolumes[i]->readFrame(z));
     }
-    for(int x = 0; x != dimx; x++)
+    for(uint32_t x = 0; x != dimx; x++)
     {
-        for(int y = 0; y != dimy; y++)
+        for(uint32_t y = 0; y != dimy; y++)
         {
             for(uint32_t i = 0; i != breakpointsNum; i++)
             {

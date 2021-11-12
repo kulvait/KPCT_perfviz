@@ -42,9 +42,9 @@ public:
      *@param[in] granularity Number of time points to fill in aif array with.
      *@param[out] aif Prealocated array to put the values at particular times.
      */
-    virtual void timeSeriesIn(const uint16_t vx,
-                              const uint16_t vy,
-                              const uint16_t vz,
+    virtual void timeSeriesIn(const uint32_t vx,
+                              const uint32_t vy,
+                              const uint32_t vz,
                               const uint32_t granularity,
                               float* aif)
         = 0;
@@ -58,7 +58,7 @@ public:
      *@param[in] t Time of evaluation.
      *@param[out] aif Prealocated array to put the values at particular times.
      */
-    virtual float valueAt(const uint16_t x, const uint16_t y, const uint16_t z, const float t) = 0;
+    virtual float valueAt(const uint32_t x, const uint32_t y, const uint32_t z, const float t) = 0;
 
     /**Function to evaluate the value of attenuation for the whole frame (z,t).
      *
@@ -67,7 +67,7 @@ public:
      *@param[out] val Prealocated array of size dimx*dimy to put the values of the frame at time t
      *at frame z.
      */
-    virtual void frameAt(const uint16_t z, const float t, float* val) = 0;
+    virtual void frameAt(const uint32_t z, const float t, float* val) = 0;
 
     /**Function to evaluate the value of attenuation for the whole volume at point t.
      *
@@ -88,7 +88,7 @@ public:
      *@param[out] val Prealocated array to put the values at particular times of the size
      *granularity*dimx*dimy.
      */
-    virtual void frameTimeSeries(const uint16_t vz, const uint32_t granularity, float* val) = 0;
+    virtual void frameTimeSeries(const uint32_t vz, const uint32_t granularity, float* val) = 0;
 
 protected:
     float intervalStart;

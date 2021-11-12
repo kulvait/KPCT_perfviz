@@ -57,9 +57,9 @@ public:
      *@param[in] granularity Number of time points to fill in aif array with.
      *@param[out] aif Prealocated array to put the values at particular times.
      */
-    void timeSeriesIn(const uint16_t x,
-                      const uint16_t y,
-                      const uint16_t z,
+    void timeSeriesIn(const uint32_t x,
+                      const uint32_t y,
+                      const uint32_t z,
                       const uint32_t granularity,
                       float* aif) override;
 
@@ -70,7 +70,7 @@ public:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[in] t Time of evaluation.
      */
-    float valueAt(const uint16_t x, const uint16_t y, const uint16_t z, const float t) override;
+    float valueAt(const uint32_t x, const uint32_t y, const uint32_t z, const float t) override;
 
     /**Function to evaluate the value of attenuation for the whole frame (z,t).
      *
@@ -79,7 +79,7 @@ public:
      *@param[out] val Prealocated array of size dimx*dimy to put the values of the frame at time t
      *at frame z.
      */
-    void frameAt(const uint16_t z, const float t, float* val) override;
+    void frameAt(const uint32_t z, const float t, float* val) override;
 
     /**Function to evaluate the value of attenuation for the whole volume at point t.
      *
@@ -99,7 +99,7 @@ public:
      *@param[out] val Prealocated array to put the values at particular times of the size
      *granularity*dimx*dimy.
      */
-    void frameTimeSeries(const uint16_t z, const uint32_t granularity, float* val) override;
+    void frameTimeSeries(const uint32_t z, const uint32_t granularity, float* val) override;
 
     /**Function to evaluate the value of Legendre polynomial without constant at given point
      *(x,y,z,intervalStart).
@@ -108,7 +108,7 @@ public:
      *@param[in] y Zero based y coordinate of the volume.
      *@param[in] z Zero based z coordinate of the volume.
      */
-    float valueAt_intervalStart(const uint16_t x, const uint16_t y, const uint16_t z);
+    float valueAt_intervalStart(const uint32_t x, const uint32_t y, const uint32_t z);
 
 private:
     /**Function to evaluate the value of Legendre polynomial without constant at given point
@@ -119,7 +119,7 @@ private:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[in] t Time of evaluation.
      */
-    float valueAt_withoutOffset(const uint16_t x, const uint16_t y, const uint16_t z, float t);
+    float valueAt_withoutOffset(const uint32_t x, const uint32_t y, const uint32_t z, float t);
 
     /**Function to evaluate the value of Legendre polynomial without constant at given frame
      *(z,t).
@@ -129,7 +129,7 @@ private:
      *@param[in] offset Specified offset to subtract and crop at 0.
      *@param[out] val Prealocated array to put the values at particular times.
      */
-    void frameAt_customOffset(const uint16_t z, const float t, float* offset, float* val);
+    void frameAt_customOffset(const uint32_t z, const float t, float* offset, float* val);
 
     /**Function to evaluate the value of Legendre polynomial without constant at given frame
      *(z,t).
@@ -137,11 +137,11 @@ private:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[out] val Prealocated array to put the values at particular times.
      */
-    void frameAt_intervalStart(const uint16_t z, float* val);
+    void frameAt_intervalStart(const uint32_t z, float* val);
 
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefficientVolumes;
     uint32_t basisSize;
-    uint16_t dimx, dimy, dimz;
+    uint32_t dimx, dimy, dimz;
     std::shared_ptr<util::VectorFunctionI> fourierEvaluatorWithoutConstant;
     float* valuesAtStart;
     float* fourierCoefficientsAtIntervalStartWithoutConstant;
@@ -157,13 +157,13 @@ private:
      */
     void updateCoefficientsStored(const float t);
     std::vector<std::shared_ptr<io::Frame2DI<float>>> framesStored;
-    uint16_t storedZ;
+    uint32_t storedZ;
     /** Function updates the framesStored to match given z frame.
      *
      *@param[in] z Frame to update.
      *
      */
-    void updateFramesStored(const uint16_t z);
+    void updateFramesStored(const uint32_t z, const bool updateFrameZero = false);
     bool negativeAsZero;
     bool halfPeriodicFunctions;
 };
@@ -252,7 +252,7 @@ void FourierSeriesEvaluator::timeDiscretization(const uint32_t granularity, floa
 bool FourierSeriesEvaluator::isTimeDiscretizedEvenly() { return true; }
 
 void FourierSeriesEvaluator::timeSeriesIn(
-    const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)
+    const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t granularity, float* val)
 {
     double time = intervalStart;
     double increment = (intervalEnd - intervalStart) / double(granularity - 1);
@@ -263,9 +263,9 @@ void FourierSeriesEvaluator::timeSeriesIn(
     }
 }
 
-float FourierSeriesEvaluator::valueAt(const uint16_t x,
-                                      const uint16_t y,
-                                      const uint16_t z,
+float FourierSeriesEvaluator::valueAt(const uint32_t x,
+                                      const uint32_t y,
+                                      const uint32_t z,
                                       const float t)
 {
     float val0 = valueAt_intervalStart(x, y, z);
@@ -286,7 +286,7 @@ void FourierSeriesEvaluator::updateCoefficientsStored(const float t)
     }
 }
 
-void FourierSeriesEvaluator::updateFramesStored(const uint16_t z)
+void FourierSeriesEvaluator::updateFramesStored(const uint32_t z, const bool updateFrameZero)
 {
 
     if(storedZ != z)
@@ -295,13 +295,17 @@ void FourierSeriesEvaluator::updateFramesStored(const uint16_t z)
         {
             framesStored[i] = coefficientVolumes[i]->readFrame(z);
         }
+        if(updateFrameZero)
+        {
+            framesStored[0] = coefficientVolumes[0]->readFrame(z);
+        }
         storedZ = z;
     }
 }
 
-float FourierSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
-                                                    const uint16_t y,
-                                                    const uint16_t z)
+float FourierSeriesEvaluator::valueAt_intervalStart(const uint32_t x,
+                                                    const uint32_t y,
+                                                    const uint32_t z)
 {
 
     std::unique_lock<std::mutex> lock(globalsAccess);
@@ -315,9 +319,9 @@ float FourierSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
     return val;
 }
 
-float FourierSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
-                                                    const uint16_t y,
-                                                    const uint16_t z,
+float FourierSeriesEvaluator::valueAt_withoutOffset(const uint32_t x,
+                                                    const uint32_t y,
+                                                    const uint32_t z,
                                                     const float t)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
@@ -331,16 +335,16 @@ float FourierSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
     return val;
 }
 
-void FourierSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val)
+void FourierSeriesEvaluator::frameAt(const uint32_t z, const float t, float* val)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
     std::fill_n(valuesAtStart, dimx * dimy, float(0.0));
     std::fill_n(val, dimx * dimy, float(0.0));
     // Initialize values of legendre polynomials at the time intervalStart
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 1; d < basisSize; d++)
             {
@@ -351,9 +355,9 @@ void FourierSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val
         }
     }
     updateCoefficientsStored(t);
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 1; d < basisSize; d++)
             {
@@ -363,7 +367,7 @@ void FourierSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val
             if(negativeAsZero)
             {
                 val[y * dimx + x]
-                    = std::max(float(0), val[y * dimx + x] - valuesAtStart[y * dimx + x]);
+                    = std::max(0.0f, val[y * dimx + x] - valuesAtStart[y * dimx + x]);
             } else
             {
                 val[y * dimx + x] = val[y * dimx + x] - valuesAtStart[y * dimx + x];
@@ -383,9 +387,9 @@ void FourierSeriesEvaluator::volumeAt(const float t,
     std::unique_lock<std::mutex> lock(globalsAccess);
     for(uint32_t z = 0; z != dimz; z++)
     {
-        updateFramesStored(z);
         if(subtractZeroVolume)
         {
+            updateFramesStored(z);
             for(uint32_t y = 0; y != dimy; y++)
             {
                 for(uint32_t x = 0; x != dimx; x++)
@@ -399,6 +403,9 @@ void FourierSeriesEvaluator::volumeAt(const float t,
                     frame_zero.set(val, x, y);
                 }
             }
+        } else
+        {
+            updateFramesStored(z, true);
         }
         updateCoefficientsStored(t);
         for(uint32_t y = 0; y != dimy; y++)
@@ -427,10 +434,11 @@ void FourierSeriesEvaluator::volumeAt(const float t,
                 }
             }
         }
+        volume->writeFrame(frame, z);
     }
 }
 
-void FourierSeriesEvaluator::frameAt_customOffset(const uint16_t z,
+void FourierSeriesEvaluator::frameAt_customOffset(const uint32_t z,
                                                   const float t,
                                                   float* offset,
                                                   float* val)
@@ -439,9 +447,9 @@ void FourierSeriesEvaluator::frameAt_customOffset(const uint16_t z,
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
     updateCoefficientsStored(t);
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 1; d < basisSize; d++)
             {
@@ -450,7 +458,7 @@ void FourierSeriesEvaluator::frameAt_customOffset(const uint16_t z,
             }
             if(negativeAsZero)
             {
-                val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - offset[y * dimx + x]);
+                val[y * dimx + x] = std::max(0.0f, val[y * dimx + x] - offset[y * dimx + x]);
             } else
             {
                 val[y * dimx + x] = val[y * dimx + x] - offset[y * dimx + x];
@@ -459,16 +467,16 @@ void FourierSeriesEvaluator::frameAt_customOffset(const uint16_t z,
     }
 }
 
-void FourierSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val)
+void FourierSeriesEvaluator::frameAt_intervalStart(const uint32_t z, float* val)
 {
 
-    std::fill_n(val, dimx * dimy, float(0.0));
+    std::fill_n(val, dimx * dimy, 0.0f);
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
 
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 1; d < basisSize; d++)
             {
@@ -479,11 +487,11 @@ void FourierSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val)
     }
 }
 
-void FourierSeriesEvaluator::frameTimeSeries(const uint16_t z,
+void FourierSeriesEvaluator::frameTimeSeries(const uint32_t z,
                                              const uint32_t granularity,
                                              float* val)
 {
-    std::fill_n(val, dimx * dimy * granularity, float(0.0));
+    std::fill_n(val, dimx * dimy * granularity, 0.0f);
     double time = intervalStart;
     double increment = (intervalEnd - intervalStart) / double(granularity - 1);
     std::vector<std::shared_ptr<io::Frame2DI<float>>> localFrames;
@@ -492,9 +500,9 @@ void FourierSeriesEvaluator::frameTimeSeries(const uint16_t z,
     {
         localFrames.emplace_back(coefficientVolumes[i]->readFrame(z));
     }
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 1; d < basisSize; d++)
             {
@@ -509,9 +517,9 @@ void FourierSeriesEvaluator::frameTimeSeries(const uint16_t z,
         time += increment;
         offset = i * dimx * dimy;
         fourierEvaluatorWithoutConstant->valuesAt(time, localFourierCoeff);
-        for(int y = 0; y != dimy; y++)
+        for(uint32_t y = 0; y != dimy; y++)
         {
-            for(int x = 0; x != dimx; x++)
+            for(uint32_t x = 0; x != dimx; x++)
             {
                 for(uint32_t d = 1; d < basisSize; d++)
                 {
@@ -529,6 +537,6 @@ void FourierSeriesEvaluator::frameTimeSeries(const uint16_t z,
             }
         }
     }
-    std::fill_n(val, dimx * dimy, float(0.0)); // At time zero is concentration zero
+    std::fill_n(val, dimx * dimy, 0.0f); // At time zero is concentration zero
 }
 } // namespace KCT::util

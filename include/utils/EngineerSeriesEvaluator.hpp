@@ -53,9 +53,9 @@ public:
      *@param[in] granularity Number of time points to fill in aif array with.
      *@param[out] aif Prealocated array to put the values at particular times.
      */
-    void timeSeriesIn(const uint16_t x,
-                      const uint16_t y,
-                      const uint16_t z,
+    void timeSeriesIn(const uint32_t x,
+                      const uint32_t y,
+                      const uint32_t z,
                       const uint32_t granularity,
                       float* aif) override;
 
@@ -66,7 +66,7 @@ public:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[in] t Time of evaluation.
      */
-    float valueAt(const uint16_t x, const uint16_t y, const uint16_t z, const float t) override;
+    float valueAt(const uint32_t x, const uint32_t y, const uint32_t z, const float t) override;
 
     /**Function to evaluate the value of attenuation for the whole frame (z,t).
      *
@@ -75,7 +75,7 @@ public:
      *@param[out] val Prealocated array of size dimx*dimy to put the values of the frame at time t
      *at frame z.
      */
-    void frameAt(const uint16_t z, const float t, float* val) override;
+    void frameAt(const uint32_t z, const float t, float* val) override;
 
     /**Function to evaluate the value of attenuation for the whole volume at point t.
      *
@@ -95,7 +95,7 @@ public:
      *@param[out] val Prealocated array to put the values at particular times of the size
      *granularity*dimx*dimy.
      */
-    void frameTimeSeries(const uint16_t z, const uint32_t granularity, float* val) override;
+    void frameTimeSeries(const uint32_t z, const uint32_t granularity, float* val) override;
 
     /**Function to evaluate the value of Engineer polynomial without constant at given point
      *(x,y,z,intervalStart).
@@ -104,7 +104,7 @@ public:
      *@param[in] y Zero based y coordinate of the volume.
      *@param[in] z Zero based z coordinate of the volume.
      */
-    float valueAt_intervalStart(const uint16_t x, const uint16_t y, const uint16_t z);
+    float valueAt_intervalStart(const uint32_t x, const uint32_t y, const uint32_t z);
 
 private:
     /**Function to evaluate the value of Engineer polynomial without constant at given point
@@ -115,7 +115,7 @@ private:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[in] t Time of evaluation.
      */
-    float valueAt_withoutOffset(const uint16_t x, const uint16_t y, const uint16_t z, float t);
+    float valueAt_withoutOffset(const uint32_t x, const uint32_t y, const uint32_t z, float t);
 
     /**Function to evaluate the value of Engineer polynomial without constant at given frame
      *(z,t).
@@ -125,7 +125,7 @@ private:
      *@param[in] offset Specified offset to subtract and crop at 0.
      *@param[out] val Prealocated array to put the values at particular times.
      */
-    void frameAt_customOffset(const uint16_t z, const float t, float* offset, float* val);
+    void frameAt_customOffset(const uint32_t z, const float t, float* offset, float* val);
 
     /**Function to evaluate the value of Engineer polynomial without constant at given frame
      *(z,t).
@@ -133,12 +133,12 @@ private:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[out] val Prealocated array to put the values at particular times.
      */
-    void frameAt_intervalStart(const uint16_t z, float* val);
+    void frameAt_intervalStart(const uint32_t z, float* val);
 
     uint32_t coefficientCount;
-    uint16_t samplingPointsCount;
+    uint32_t samplingPointsCount;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefficientVolumes;
-    uint16_t dimx, dimy, dimz;
+    uint32_t dimx, dimy, dimz;
     std::shared_ptr<util::VectorFunctionI> basisEvaluator;
     float* valuesAtStart;
     float* basisCoefficientsStart;
@@ -154,13 +154,13 @@ private:
      */
     void updateEngineerValuesStored(const float t);
     std::vector<std::shared_ptr<io::Frame2DI<float>>> framesStored;
-    uint16_t storedZ;
+    uint32_t storedZ;
     /** Function updates the framesStored to match given z frame.
      *
      *@param[in] z Frame to update.
      *
      */
-    void updateFramesStored(const uint16_t z);
+    void updateFramesStored(const uint32_t z);
 };
 
 EngineerSeriesEvaluator::EngineerSeriesEvaluator(std::string sampledBasisFunctions,
@@ -249,7 +249,7 @@ void EngineerSeriesEvaluator::timeDiscretization(const uint32_t granularity, flo
 bool EngineerSeriesEvaluator::isTimeDiscretizedEvenly() { return true; }
 
 void EngineerSeriesEvaluator::timeSeriesIn(
-    const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)
+    const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t granularity, float* val)
 {
     double time = intervalStart;
     double increment = (intervalEnd - intervalStart) / double(granularity - 1);
@@ -260,9 +260,9 @@ void EngineerSeriesEvaluator::timeSeriesIn(
     }
 }
 
-float EngineerSeriesEvaluator::valueAt(const uint16_t x,
-                                       const uint16_t y,
-                                       const uint16_t z,
+float EngineerSeriesEvaluator::valueAt(const uint32_t x,
+                                       const uint32_t y,
+                                       const uint32_t z,
                                        const float t)
 {
     float val0 = valueAt_intervalStart(x, y, z);
@@ -279,7 +279,7 @@ void EngineerSeriesEvaluator::updateEngineerValuesStored(const float t)
     }
 }
 
-void EngineerSeriesEvaluator::updateFramesStored(const uint16_t z)
+void EngineerSeriesEvaluator::updateFramesStored(const uint32_t z)
 {
 
     if(storedZ != z)
@@ -293,9 +293,9 @@ void EngineerSeriesEvaluator::updateFramesStored(const uint16_t z)
     }
 }
 
-float EngineerSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
-                                                     const uint16_t y,
-                                                     const uint16_t z)
+float EngineerSeriesEvaluator::valueAt_intervalStart(const uint32_t x,
+                                                     const uint32_t y,
+                                                     const uint32_t z)
 {
 
     std::unique_lock<std::mutex> lock(globalsAccess);
@@ -308,9 +308,9 @@ float EngineerSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
     return val;
 }
 
-float EngineerSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
-                                                     const uint16_t y,
-                                                     const uint16_t z,
+float EngineerSeriesEvaluator::valueAt_withoutOffset(const uint32_t x,
+                                                     const uint32_t y,
+                                                     const uint32_t z,
                                                      const float t)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
@@ -324,16 +324,16 @@ float EngineerSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
     return val;
 }
 
-void EngineerSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val)
+void EngineerSeriesEvaluator::frameAt(const uint32_t z, const float t, float* val)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
     std::fill_n(valuesAtStart, dimx * dimy, float(0.0));
     std::fill_n(val, dimx * dimy, float(0.0));
     // Values at intervalStart
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 0; d != coefficientCount; d++)
             {
@@ -343,9 +343,9 @@ void EngineerSeriesEvaluator::frameAt(const uint16_t z, const float t, float* va
         }
     }
     updateEngineerValuesStored(t);
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 0; d != coefficientCount; d++)
             {
@@ -405,7 +405,7 @@ void EngineerSeriesEvaluator::volumeAt(const float t,
     }
 }
 
-void EngineerSeriesEvaluator::frameAt_customOffset(const uint16_t z,
+void EngineerSeriesEvaluator::frameAt_customOffset(const uint32_t z,
                                                    const float t,
                                                    float* offset,
                                                    float* val)
@@ -414,28 +414,28 @@ void EngineerSeriesEvaluator::frameAt_customOffset(const uint16_t z,
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
     updateEngineerValuesStored(t);
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 0; d != coefficientCount; d++)
             {
                 val[y * dimx + x] += basisCoefficientsStored[d] * framesStored[d]->get(x, y);
             }
-            val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - offset[y * dimx + x]);
+            val[y * dimx + x] = std::max(0.0f, val[y * dimx + x] - offset[y * dimx + x]);
         }
     }
 }
-void EngineerSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val)
+void EngineerSeriesEvaluator::frameAt_intervalStart(const uint32_t z, float* val)
 {
 
-    std::fill_n(val, dimx * dimy, float(0.0));
+    std::fill_n(val, dimx * dimy, 0.0f);
     std::unique_lock<std::mutex> lock(globalsAccess);
     updateFramesStored(z);
 
-    for(int y = 0; y != dimy; y++)
+    for(uint32_t y = 0; y != dimy; y++)
     {
-        for(int x = 0; x != dimx; x++)
+        for(uint32_t x = 0; x != dimx; x++)
         {
             for(uint32_t d = 0; d != coefficientCount; d++)
             {
@@ -444,7 +444,7 @@ void EngineerSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val
         }
     }
 }
-void EngineerSeriesEvaluator::frameTimeSeries(const uint16_t z,
+void EngineerSeriesEvaluator::frameTimeSeries(const uint32_t z,
                                               const uint32_t granularity,
                                               float* val)
 {

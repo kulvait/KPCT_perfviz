@@ -60,9 +60,9 @@ public:
      *@param[in] granularity Number of time points to fill in aif array with.
      *@param[out] aif Prealocated array to put the values at particular times.
      */
-    void timeSeriesIn(const uint16_t x,
-                      const uint16_t y,
-                      const uint16_t z,
+    void timeSeriesIn(const uint32_t x,
+                      const uint32_t y,
+                      const uint32_t z,
                       const uint32_t granularity,
                       float* aif) override;
 
@@ -73,7 +73,7 @@ public:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[in] t Time of evaluation.
      */
-    float valueAt(const uint16_t x, const uint16_t y, const uint16_t z, const float t) override;
+    float valueAt(const uint32_t x, const uint32_t y, const uint32_t z, const float t) override;
 
     /**Function to evaluate the value of attenuation for the whole frame (z,t).
      *
@@ -82,7 +82,7 @@ public:
      *@param[out] val Prealocated array of size dimx*dimy to put the values of the frame at time t
      *at frame z.
      */
-    void frameAt(const uint16_t z, const float t, float* val) override;
+    void frameAt(const uint32_t z, const float t, float* val) override;
 
     /**Function to evaluate the value of attenuation for the whole volume at point t.
      *
@@ -102,7 +102,7 @@ public:
      *@param[out] val Prealocated array to put the values at particular times of the size
      *granularity*dimx*dimy.
      */
-    void frameTimeSeries(const uint16_t z, const uint32_t granularity, float* val) override;
+    void frameTimeSeries(const uint32_t z, const uint32_t granularity, float* val) override;
 
     /**Function to evaluate the value of polynomial without constant at given point
      *(x,y,z,intervalStart).
@@ -111,7 +111,7 @@ public:
      *@param[in] y Zero based y coordinate of the volume.
      *@param[in] z Zero based z coordinate of the volume.
      */
-    float valueAt_intervalStart(const uint16_t x, const uint16_t y, const uint16_t z);
+    float valueAt_intervalStart(const uint32_t x, const uint32_t y, const uint32_t z);
 
 private:
     /**Function to evaluate the value of polynomial without constant at given point
@@ -122,7 +122,7 @@ private:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[in] t Time of evaluation.
      */
-    float valueAt_withoutOffset(const uint16_t x, const uint16_t y, const uint16_t z, float t);
+    float valueAt_withoutOffset(const uint32_t x, const uint32_t y, const uint32_t z, float t);
 
     /**Function to evaluate the value of polynomial without constant at given frame
      *(z,t).
@@ -132,7 +132,7 @@ private:
      *@param[in] offset Specified offset to subtract and crop at 0.
      *@param[out] val Prealocated array to put the values at particular times.
      */
-    void frameAt_customOffset(const uint16_t z, const float t, float* offset, float* val);
+    void frameAt_customOffset(const uint32_t z, const float t, float* offset, float* val);
 
     /**Function to evaluate the value of  polynomial without constant at given frame
      *(z,t).
@@ -140,7 +140,7 @@ private:
      *@param[in] z Zero based z coordinate of the volume.
      *@param[out] val Prealocated array to put the values at particular times.
      */
-    void frameAt_intervalStart(const uint16_t z, float* val);
+    void frameAt_intervalStart(const uint32_t z, float* val);
 
     uint32_t degree;
     std::vector<std::shared_ptr<io::Frame2DReaderI<float>>> coefficientVolumes;
@@ -161,13 +161,14 @@ private:
      */
     void updatePolynomialValuesStoredToNewTimepoint(const float t);
     std::vector<std::shared_ptr<io::Frame2DI<float>>> framesStored;
-    uint16_t storedZ;
+    std::shared_ptr<io::Frame2DI<float>> frameZeroStored = nullptr;
+    uint32_t storedZ;
     /** Function updates the framesStored to match given z frame.
      *
      *@param[in] z Frame to update.
      *
      */
-    void updateFramesStored(const uint16_t z);
+    void updateFramesStored(const uint32_t z, const bool updateFrameZero);
     bool negativeAsZero;
     polynomialType pt;
 };
@@ -240,6 +241,7 @@ PolynomialSeriesEvaluator::PolynomialSeriesEvaluator(
     {
         framesStored.push_back(coefficientVolumes[i]->readFrame(storedZ));
     }
+    frameZeroStored = constantCoefficientVolume->readFrame(storedZ);
     valuesAtStart = new float[dimx * dimy](); // Constructor is not filling this array
 }
 
@@ -273,7 +275,7 @@ void PolynomialSeriesEvaluator::timeDiscretization(const uint32_t granularity, f
 bool PolynomialSeriesEvaluator::isTimeDiscretizedEvenly() { return true; }
 
 void PolynomialSeriesEvaluator::timeSeriesIn(
-    const uint16_t x, const uint16_t y, const uint16_t z, const uint32_t granularity, float* val)
+    const uint32_t x, const uint32_t y, const uint32_t z, const uint32_t granularity, float* val)
 {
     double time = intervalStart;
     double increment = (intervalEnd - intervalStart) / double(granularity - 1);
@@ -284,9 +286,9 @@ void PolynomialSeriesEvaluator::timeSeriesIn(
     }
 }
 
-float PolynomialSeriesEvaluator::valueAt(const uint16_t x,
-                                         const uint16_t y,
-                                         const uint16_t z,
+float PolynomialSeriesEvaluator::valueAt(const uint32_t x,
+                                         const uint32_t y,
+                                         const uint32_t z,
                                          const float t)
 {
     float val0 = valueAt_intervalStart(x, y, z);
@@ -306,7 +308,7 @@ void PolynomialSeriesEvaluator::updatePolynomialValuesStoredToNewTimepoint(const
     }
 }
 
-void PolynomialSeriesEvaluator::updateFramesStored(const uint16_t z)
+void PolynomialSeriesEvaluator::updateFramesStored(const uint32_t z, const bool updateFrameZero)
 {
 
     if(storedZ != z)
@@ -316,17 +318,21 @@ void PolynomialSeriesEvaluator::updateFramesStored(const uint16_t z)
         {
             framesStored.push_back(coefficientVolumes[i]->readFrame(z));
         }
+        if(updateFrameZero)
+        {
+            frameZeroStored = constantCoefficientVolume->readFrame(storedZ);
+        }
         storedZ = z;
     }
 }
 
-float PolynomialSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
-                                                       const uint16_t y,
-                                                       const uint16_t z)
+float PolynomialSeriesEvaluator::valueAt_intervalStart(const uint32_t x,
+                                                       const uint32_t y,
+                                                       const uint32_t z)
 {
 
     std::unique_lock<std::mutex> lock(globalsAccess);
-    updateFramesStored(z);
+    updateFramesStored(z, false);
     float val = 0.0;
     for(uint32_t i = 0; i != degree; i++)
     {
@@ -335,14 +341,14 @@ float PolynomialSeriesEvaluator::valueAt_intervalStart(const uint16_t x,
     return val;
 }
 
-float PolynomialSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
-                                                       const uint16_t y,
-                                                       const uint16_t z,
+float PolynomialSeriesEvaluator::valueAt_withoutOffset(const uint32_t x,
+                                                       const uint32_t y,
+                                                       const uint32_t z,
                                                        const float t)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
     updatePolynomialValuesStoredToNewTimepoint(t);
-    updateFramesStored(z);
+    updateFramesStored(z, false);
     float val = 0.0;
     for(uint32_t i = 0; i != degree; i++)
     {
@@ -351,10 +357,10 @@ float PolynomialSeriesEvaluator::valueAt_withoutOffset(const uint16_t x,
     return val;
 }
 
-void PolynomialSeriesEvaluator::frameAt(const uint16_t z, const float t, float* val)
+void PolynomialSeriesEvaluator::frameAt(const uint32_t z, const float t, float* val)
 {
     std::unique_lock<std::mutex> lock(globalsAccess);
-    updateFramesStored(z);
+    updateFramesStored(z, false);
     std::fill_n(valuesAtStart, dimx * dimy, float(0.0));
     std::fill_n(val, dimx * dimy, float(0.0));
     // Initialize values of polynomials at the time intervalStart
@@ -390,14 +396,14 @@ void PolynomialSeriesEvaluator::frameAt(const uint16_t z, const float t, float* 
     }
 }
 
-void PolynomialSeriesEvaluator::frameAt_customOffset(const uint16_t z,
+void PolynomialSeriesEvaluator::frameAt_customOffset(const uint32_t z,
                                                      const float t,
                                                      float* offset,
                                                      float* val)
 {
     std::fill_n(val, dimx * dimy, float(0.0));
     std::unique_lock<std::mutex> lock(globalsAccess);
-    updateFramesStored(z);
+    updateFramesStored(z, false);
     updatePolynomialValuesStoredToNewTimepoint(t);
     for(uint32_t y = 0; y != dimy; y++)
     {
@@ -409,7 +415,7 @@ void PolynomialSeriesEvaluator::frameAt_customOffset(const uint16_t z,
             }
             if(negativeAsZero)
             {
-                val[y * dimx + x] = std::max(float(0), val[y * dimx + x] - offset[y * dimx + x]);
+                val[y * dimx + x] = std::max(0.0f, val[y * dimx + x] - offset[y * dimx + x]);
             } else
             {
                 val[y * dimx + x] = val[y * dimx + x] - offset[y * dimx + x];
@@ -418,12 +424,12 @@ void PolynomialSeriesEvaluator::frameAt_customOffset(const uint16_t z,
     }
 }
 
-void PolynomialSeriesEvaluator::frameAt_intervalStart(const uint16_t z, float* val)
+void PolynomialSeriesEvaluator::frameAt_intervalStart(const uint32_t z, float* val)
 {
 
     std::fill_n(val, dimx * dimy, float(0.0));
     std::unique_lock<std::mutex> lock(globalsAccess);
-    updateFramesStored(z);
+    updateFramesStored(z, false);
 
     for(uint32_t y = 0; y != dimy; y++)
     {
@@ -449,9 +455,9 @@ void PolynomialSeriesEvaluator::volumeAt(const float t,
     std::unique_lock<std::mutex> lock(globalsAccess);
     for(uint32_t z = 0; z != dimz; z++)
     {
-        updateFramesStored(z);
         if(subtractZeroVolume)
         {
+            updateFramesStored(z, false);
             for(uint32_t y = 0; y != dimy; y++)
             {
                 for(uint32_t x = 0; x != dimx; x++)
@@ -466,7 +472,7 @@ void PolynomialSeriesEvaluator::volumeAt(const float t,
             }
         } else
         {
-            frame_constant = constantCoefficientVolume->readFrame(z);
+            updateFramesStored(z, true);
         }
         updatePolynomialValuesStoredToNewTimepoint(t);
         for(uint32_t y = 0; y != dimy; y++)
@@ -489,15 +495,16 @@ void PolynomialSeriesEvaluator::volumeAt(const float t,
                     }
                 } else
                 {
-                    val += frame_constant->get(x, y);
+                    val += frameZeroStored->get(x, y);
                     frame.set(val, x, y);
                 }
             }
         }
+        volume->writeFrame(frame, z);
     }
 }
 
-void PolynomialSeriesEvaluator::frameTimeSeries(const uint16_t z,
+void PolynomialSeriesEvaluator::frameTimeSeries(const uint32_t z,
                                                 const uint32_t granularity,
                                                 float* val)
 {
@@ -509,6 +516,6 @@ void PolynomialSeriesEvaluator::frameTimeSeries(const uint16_t z,
         time += increment;
         frameAt_customOffset(z, time, val, &val[i * dimx * dimy]);
     }
-    std::fill_n(val, dimx * dimy, float(0.0)); // At time zero is concentration zero
+    std::fill_n(val, dimx * dimy, 0.0f); // At time zero is concentration zero
 }
 } // namespace KCT::util
