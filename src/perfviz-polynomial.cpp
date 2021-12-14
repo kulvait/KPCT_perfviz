@@ -124,6 +124,10 @@ int Args::postParse()
         showBasis = true;
         showAIF = true;
     }
+    if(showBasis || showAIF)
+    {
+        vizualize = true;
+    }
     return 0;
 }
 
@@ -255,13 +259,13 @@ int main(int argc, char* argv[])
             pltargs.insert(std::pair<std::string, std::string>("Color", "Orange"));
             plt::scatter(taxis_scatter, plotme_scatter, 90.0, pltargs);
         }
-        if(ARG.showAIF)
-        {
-            plt::show();
-        }
         if(!ARG.aifImageFile.empty())
         {
             plt::save(ARG.aifImageFile);
+        }
+        if(ARG.showAIF)
+        {
+            plt::show();
         }
         delete[] _taxis;
     }

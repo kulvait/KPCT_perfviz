@@ -122,6 +122,15 @@ int Args::postParse()
         LOGE << err;
         return 1;
     }
+    if(vizualize)
+    {
+        showBasis = true;
+        showAIF = true;
+    }
+    if(showBasis || showAIF)
+    {
+        vizualize = true;
+    }
     return 0;
 }
 
@@ -239,13 +248,13 @@ int main(int argc, char* argv[])
             plt::ylabel("Attenuation");
         }
         plt::legend();
-        if(ARG.vizualize)
-        {
-            plt::show();
-        }
         if(!ARG.aifImageFile.empty())
         {
             plt::save(ARG.aifImageFile);
+        }
+        if(ARG.vizualize)
+        {
+            plt::show();
         }
         if(!ARG.aifCsvFile.empty())
         {

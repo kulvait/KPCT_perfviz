@@ -186,13 +186,13 @@ int main(int argc, char* argv[])
         std::vector<double> taxis_scatter = conct->nativeTimeDiscretization(ARG.ifz);
         std::vector<double> plotme_scatter = conct->nativeValuesIn(ARG.ifx, ARG.ify, ARG.ifz);
         plt::plot(taxis_scatter, plotme_scatter);
-        if(ARG.vizualize)
-        {
-            plt::show();
-        }
         if(!ARG.storeAIF.empty())
         {
             plt::save(ARG.storeAIF);
+        }
+        if(ARG.vizualize)
+        {
+            plt::show();
         }
         delete[] _taxis;
     }

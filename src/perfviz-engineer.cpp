@@ -170,6 +170,10 @@ int Args::postParse()
         showBasis = true;
         showAIF = true;
     }
+    if(showBasis || showAIF)
+    {
+        vizualize = true;
+    }
     io::DenFileInfo db(sampledBasis);
     basisCapacity = di.dimz();
     if(basisCapacity < fittedCoefficients.size())
@@ -263,13 +267,13 @@ int main(int argc, char* argv[])
             taxis.push_back(_taxis[i] / ARG.secLength);
         }
         plt::plot(taxis, plotme);
-        if(ARG.showAIF)
-        {
-            plt::show();
-        }
         if(!ARG.aifImageFile.empty())
         {
             plt::save(ARG.aifImageFile);
+        }
+        if(ARG.showAIF)
+        {
+            plt::show();
         }
         if(!ARG.aifCsvFile.empty())
         {
