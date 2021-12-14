@@ -242,7 +242,7 @@ int main(int argc, char* argv[])
         plt::title(io::xprintf("Time attenuation curve, TST Engineer, x=%d, y=%d, z=%d.", ARG.ifx,
                                ARG.ify, ARG.ifz));
         plt::xlabel("Time [s]");
-        if(ARG.water_value > 0)
+        if(ARG.water_value > 0.0)
         {
             plt::ylabel("Attenuation [HU]");
         } else
@@ -258,7 +258,7 @@ int main(int argc, char* argv[])
             float v = aif[i] + aifZeroValue;
             if(ARG.water_value > 0)
             {
-                float hu = 1000 * (v / ARG.water_value - 1.0);
+                float hu = 1000.0f * (v / ARG.water_value - 1.0f);
                 plotme.push_back(hu);
             } else
             {
