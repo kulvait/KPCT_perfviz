@@ -20,6 +20,14 @@ Different bases are implemented in this model. Specifically, these are two ortho
 
 Details about this software will be presented in the prepared publication.
 
+## Cloning the repository
+
+### Bitbucket repository
+	git clone git clone git@bitbucket.org:kulvait/kct_perfviz.git
+
+### Github repository
+	git clone https://github.com/kulvait/KPCT_perfviz
+	git clone git@github.com:kulvait/KPCT_perfviz.git
 
 ## Submodules
 
@@ -64,7 +72,7 @@ Threadpool library.
 
 When there is no other licensing and/or copyright information in the source files of this project, the following apply for the source files in the directories include and src and for CMakeLists.txt file:
 
-Copyright (C) 2018-2021 Vojtěch Kulvait
+Copyright (C) 2018-2022 Vojtěch Kulvait
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
