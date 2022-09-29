@@ -36,10 +36,13 @@ public:
                 bool zeroStartOffset = true,
                 float minimumAttenuationValue = 0.0);
 
-    /**Destructor of CTEvaluator class
+    /** Destructor of CTEvaluator class
+     *
+     * Virtual by default.
+     * https://stackoverflow.com/a/7403943
      *
      */
-    ~CTEvaluator();
+    virtual ~CTEvaluator();
 
     /**Function to obtain time discretization as float array.
      *

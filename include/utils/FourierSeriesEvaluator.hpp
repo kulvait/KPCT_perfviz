@@ -206,7 +206,7 @@ FourierSeriesEvaluator::FourierSeriesEvaluator(std::vector<std::string> coeffici
         }
     }
     fourierEvaluatorWithoutConstant = std::make_shared<util::FourierSeries>(
-        basisSize, intervalStart, intervalEnd, 1, halfPeriodicFunctions);
+        basisSize, intervalStart, intervalEnd, 1, this->halfPeriodicFunctions);
     fourierCoefficientsAtStoredTimeWithoutConstant = new float[basisSize - 1];
     fourierCoefficientsAtIntervalStartWithoutConstant = new float[basisSize - 1];
     fourierEvaluatorWithoutConstant->valuesAt(intervalStart,

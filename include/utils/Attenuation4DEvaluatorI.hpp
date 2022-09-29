@@ -19,6 +19,13 @@ public:
         }
     }
 
+    /** Virtual destructor
+     *
+     * Virtual destructor is important not to produce warnings, see
+     * https://stackoverflow.com/a/10024842
+     */
+    virtual ~Attenuation4DEvaluatorI() = default;
+
     /**Function to obtain time discretization.
      *
      *This function evaluates the time instants in which other functions of the implementing class

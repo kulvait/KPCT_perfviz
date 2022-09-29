@@ -222,7 +222,7 @@ PolynomialSeriesEvaluator::PolynomialSeriesEvaluator(
             KCTERR(err);
         }
     }
-    if(pt == polynomialType::Legendre)
+    if(this->pt == polynomialType::Legendre)
     {
         polynomialBasisEvaluator = std::make_shared<util::LegendrePolynomialsExplicit>(
             degree, intervalStart, intervalEnd, true, 1);
