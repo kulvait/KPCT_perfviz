@@ -51,7 +51,7 @@ void PerfusionVizualizationArguments::addIntervalArgs()
         ->add_option("-e,--end-time", endTime,
                      "End of the interval in miliseconds of the support of the functions of time "
                      "[defaults to 56000, duration of 9 sweeps].")
-        ->check(CLI::Range(0.0, 100000.0));
+        ->check(CLI::Range(0.0, 200000.0));
     addSecLength();
     addGranularity();
 }
