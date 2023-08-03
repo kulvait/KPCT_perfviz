@@ -47,10 +47,10 @@ include_directories(${CMAKE_SOURCE_DIR}/submodules/CTMAL/include)
 
 #Matplotlibcpp
 include_directories(${CMAKE_SOURCE_DIR}/submodules/matplotlib-cpp)
-
-#Python for matplotlib
-find_package (Python3 COMPONENTS Development)
+#Python 3 dependencies
+find_package (Python3 COMPONENTS Interpreter Development NumPy)
 include_directories(${Python3_INCLUDE_DIRS})
+include_directories(${Python3_NumPy_INCLUDE_DIRS})
 
 #Git versioning
 INCLUDE(${CMAKE_SOURCE_DIR}/submodules/gitversion/cmake.cmake)
