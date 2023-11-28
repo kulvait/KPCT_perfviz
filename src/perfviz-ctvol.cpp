@@ -271,10 +271,11 @@ int writeVolume(
     double t,
     std::shared_ptr<io::AsyncFrame2DWritterI<float>> volumeWritter) // For testing normal
 {
-    uint16_t dimx = volumeWritter->dimx();
-    uint16_t dimy = volumeWritter->dimy();
-    uint16_t dimz = volumeWritter->dimz();
-    float* buffer = new float[dimx * dimy];
+    uint32_t dimx = volumeWritter->dimx();
+    uint32_t dimy = volumeWritter->dimy();
+    uint32_t dimz = volumeWritter->getFrameCount();
+    uint64_t frameSize = (uint64_t)dimx * (uint64_t)dimy;
+    float* buffer = new float[frameSize];
     std::unique_ptr<io::Frame2DI<float>> memoryViewer
         = std::make_unique<io::FrameMemoryViewer2D<float>>(buffer, dimx, dimy);
     for(uint32_t z = 0; z != dimz; z++)
