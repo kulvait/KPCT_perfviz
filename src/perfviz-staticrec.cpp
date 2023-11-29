@@ -237,7 +237,7 @@ int main(int argc, char* argv[])
             io::xprintf("Time attenuation curve x=%d, y=%d, z=%d.", ARG.ifx, ARG.ify, ARG.ifz));
         plt::named_plot("Spline fit approximation", taxis, plotme);
         std::map<std::string, std::string> pltargs;
-        pltargs.insert(std::pair<std::string, std::string>("Color", "Orange"));
+        pltargs.insert(std::pair<std::string, std::string>("c", "Orange"));
         plt::scatter(taxis_scatter, plotme_scatter, 90.0, pltargs);
         plt::xlabel("Time [s]");
         if(ARG.water_value > 0)

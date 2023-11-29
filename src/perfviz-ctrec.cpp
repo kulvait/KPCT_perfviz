@@ -23,7 +23,6 @@
 
 #if DEBUG
 #include "matplotlibcpp.h"
-
 namespace plt = matplotlibcpp;
 #endif
 
@@ -126,7 +125,7 @@ int Args::postParse()
     }
     if(coefficientVolumeFiles.size() != 30 && coefficientVolumeFiles.size() != 15)
     {
-        err = io::xprintf("Number of sweeps is %d which is unusual number.",
+        err = io::xprintf("Number of volumes to process is %d which is unusual number.",
                           coefficientVolumeFiles.size());
         LOGW << err;
     }
@@ -183,9 +182,9 @@ int main(int argc, char* argv[])
     }
     PRG.startLog(true);
     io::DenFileInfo di(ARG.coefficientVolumeFiles[0]);
-    uint16_t dimx = di.dimx();
-    uint16_t dimy = di.dimy();
-    uint16_t dimz = di.dimz();
+    uint32_t dimx = di.dimx();
+    uint32_t dimy = di.dimy();
+    uint32_t dimz = di.dimz();
     // Computation of the start and end of the interval
     std::shared_ptr<io::Frame2DReaderI<float>> startData
         = std::make_shared<io::DenFrame2DReader<float>>(ARG.tickFiles[0]);
@@ -327,7 +326,7 @@ int main(int argc, char* argv[])
         }
         plt::named_plot("Spline fit approximation", taxis, plotme);
         std::map<std::string, std::string> pltargs;
-        pltargs.insert(std::pair<std::string, std::string>("Color", "Orange"));
+        pltargs.insert(std::pair<std::string, std::string>("c", "Orange"));
         plt::scatter(taxis_scatter, plotme_scatter, 90.0, pltargs);
         plt::xlabel("Time [s]");
         if(ARG.water_value > 0)
@@ -362,6 +361,7 @@ int main(int argc, char* argv[])
     }
     if(ARG.stopAfterVizualization)
     {
+        PRG.endLog(true);
         return 0;
     }
     bool truncatedInstead = false;
@@ -395,5 +395,5 @@ int main(int argc, char* argv[])
     }
     delete[] convolutionMatrix;
     delete[] aif;
-    LOGI << io::xprintf("END %s", argv[0]);
+    PRG.endLog(true);
 }
