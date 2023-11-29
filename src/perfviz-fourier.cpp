@@ -250,7 +250,7 @@ int main(int argc, char* argv[])
         if(ARG.staticReconstructionDir != "")
         {
             std::map<std::string, std::string> pltargs;
-            pltargs.insert(std::pair<std::string, std::string>("Color", "Orange"));
+            pltargs.insert(std::pair<std::string, std::string>("c", "Orange"));
             plt::scatter(taxis_scatter, plotme_scatter, 90.0, pltargs);
         }
         if(!ARG.aifImageFile.empty())
